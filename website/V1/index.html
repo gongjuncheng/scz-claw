@@ -1646,21 +1646,104 @@
         });
       }
 
+      // ========== AI 真实生成（DeepSeek） ==========
+      function saveAIGeneration(type, title, content) {
+        const item = { type, title, content, created_at: new Date().toISOString() };
+        if (currentUser) {
+          supabase.from('claw_history').insert({ user_id: currentUser.id, type, title, content });
+        } else {
+          const hist = getLocalHistory(); hist.unshift(item); saveLocalHistory(hist);
+        }
+      }
+
+      const AI_TYPE_VALUES = ['选择题', '填空题', '解答题', '判断题', '应用题'];
+
+      async function submitAI(btnId, loadingId, resultId, preId, endpoint, buildBody) {
+        const btn = document.getElementById(btnId);
+        const loading = document.getElementById(loadingId);
+        const result = document.getElementById(resultId);
+        const pre = document.getElementById(preId);
+        btn.addEventListener('click', async () => {
+          if (!checkGuestLimit(btnId.replace('btn', '').toLowerCase())) return;
+          const body = buildBody();
+          if (body.error) { showToast(body.error, 'error'); return; }
+          btn.disabled = true;
+          loading.classList.add('show');
+          result.classList.remove('show');
+          try {
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            loading.classList.remove('show');
+            if (data.success) {
+              result.classList.add('show');
+              pre.textContent = data.content;
+              showToast('生成完成！', 'success');
+              saveAIGeneration(body.type || 'ai', body.title || endpoint, data.content);
+            } else {
+              showToast('生成失败: ' + (data.error || '未知错误'), 'error');
+            }
+          } catch (e) {
+            loading.classList.remove('show');
+            showToast('请求失败: ' + e.message, 'error');
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      }
+
       // 教案设计
-      submitWithMock('btnLesson', 'loading-lesson', 'result-lesson', 'pre-lesson',
-        '📘 教案：二次函数图像与性质\n\n一、教学目标\n1. 知识与技能：理解二次函数的图像特征...\n2. 过程与方法：通过图像观察、分析...\n3. 情感态度与价值观：培养数形结合思想...\n\n二、教学重难点\n重点：二次函数的性质\n难点：图像与系数的关系\n\n三、教学过程\n1. 导入（5分钟）...\n2. 新课讲授（25分钟）...\n3. 课堂练习（10分钟）...\n4. 小结与作业（5分钟）...\n\n（演示模式，接入AI后此处将生成完整教案）');
+      submitAI('btnLesson', 'loading-lesson', 'result-lesson', 'pre-lesson', '/api/ai/lesson', () => {
+        const topic = document.getElementById('lessonTopic').value.trim();
+        if (!topic) return { error: '请填写教学主题' };
+        return {
+          type: 'lesson', title: topic, topic,
+          grade: document.getElementById('lessonGrade').value,
+          period: document.getElementById('lessonPeriod').value,
+          note: document.getElementById('lessonNote').value.trim()
+        };
+      });
 
       // 习题制作
-      submitWithMock('btnExercise', 'loading-exercise', 'result-exercise', 'pre-exercise',
-        '📋 习题：一元二次方程的解法\n\n一、选择题\n1. 方程 x²-5x+6=0 的解为（  ）\nA. x=2, x=3    B. x=-2, x=-3\nC. x=1, x=6    D. x=-1, x=-6\n【答案】A\n\n二、填空题\n2. 方程 2x²-8=0 的解为 __________\n【答案】x=±2\n\n三、解答题\n3. 用配方法解方程：x²+6x-7=0\n【解析】...\n\n（演示模式，接入AI后此处将生成真实习题）');
+      submitAI('btnExercise', 'loading-exercise', 'result-exercise', 'pre-exercise', '/api/ai/exercise', () => {
+        const topic = document.getElementById('exerTopic').value.trim();
+        if (!topic) return { error: '请填写知识点' };
+        const types = Array.from(document.querySelectorAll('#panel-exercise input[type=checkbox]'))
+          .filter(c => AI_TYPE_VALUES.includes(c.value) && c.checked)
+          .map(c => c.value);
+        const answerMode = document.getElementById('exerAnalysisAnswer').checked
+          ? 'analysis'
+          : (document.getElementById('exerSimpleAnswer').checked ? 'simple' : 'default');
+        return {
+          type: 'exercise', title: topic, topic, types,
+          count: document.getElementById('exerCount').value,
+          difficulty: document.getElementById('exerDifficulty').value,
+          grade: document.getElementById('exerGrade').value,
+          answerMode
+        };
+      });
 
-      // PPT
-      submitWithMock('btnPpt', 'loading-ppt', 'result-ppt', 'pre-ppt',
-        '📊 PPT：光合作用的过程\n\n第1页：封面 —— 光合作用的过程\n第2页：导入 —— 生活中的光合作用现象\n第3页：新课讲授 —— 光合作用的概念\n第4页：光合作用的条件与场所\n第5页：光合作用的公式\n第6页：影响光合作用的因素\n第7页：光合作用的实质\n第8页：课堂练习\n第9页：知识拓展\n第10页：小结与作业\n\n（演示模式，接入AI后将生成可下载的PPT文件）');
+      // 教学PPT
+      submitAI('btnPpt', 'loading-ppt', 'result-ppt', 'pre-ppt', '/api/ai/ppt', () => {
+        const topic = document.getElementById('pptTopic').value.trim();
+        if (!topic) return { error: '请填写PPT主题' };
+        return {
+          type: 'ppt', title: topic, topic,
+          pages: document.getElementById('pptPages').value,
+          style: document.getElementById('pptStyle').value,
+          outline: document.getElementById('pptOutline').value.trim()
+        };
+      });
 
-      // 小程序
-      submitWithMock('btnMiniapp', 'loading-miniapp', 'result-miniapp', 'pre-miniapp',
-        '📱 教学小程序：随机点名助手\n\n✅ 已生成 HTML 小程序代码\n✅ 包含：随机动画、名单管理、历史记录\n\n预览代码：\n```html\n<!DOCTYPE html>\n<html>\n<head>\n  <title>课堂点名助手</title>\n  <style>...\n</style>\n</head>\n<body>\n  <div class="container">\n    <h1>🎯 随机点名</h1>\n    ...\n  </div>\n</body>\n</html>\n```\n\n（演示模式，接入AI后将生成完整HTML并可选推送到GitHub）');
+      // 教学小程序
+      submitAI('btnMiniapp', 'loading-miniapp', 'result-miniapp', 'pre-miniapp', '/api/ai/miniapp', () => {
+        const description = document.getElementById('miniappDesc').value.trim();
+        if (!description) return { error: '请描述小程序功能' };
+        return { type: 'miniapp', title: description.slice(0, 20), description };
+      });
 
       // ========== 初始化 ==========
       initAuth();

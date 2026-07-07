@@ -308,6 +308,86 @@ app.post('/api/email/generate-attachment', async (req, res) => {
   }
 });
 
+// ==================== AI 内容生成（DeepSeek） ====================
+
+async function callDeepSeek(systemPrompt, userPrompt, temperature = 0.7) {
+  const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('未配置 AI 服务（请在 .env 设置 DEEPSEEK_API_KEY）');
+  const baseUrl = (process.env.AI_BASE_URL || 'https://api.deepseek.com/v1').replace(/\/$/, '');
+  const model = process.env.AI_MODEL || 'deepseek-chat';
+  const r = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature
+    })
+  });
+  const d = await r.json();
+  if (!r.ok || !d.choices?.[0]?.message?.content) {
+    throw new Error('AI 服务返回异常：' + (d.error?.message || r.statusText));
+  }
+  return d.choices[0].message.content.trim();
+}
+
+app.post('/api/ai/lesson', async (req, res) => {
+  try {
+    const { topic, grade, period, note } = req.body;
+    if (!topic) return res.status(400).json({ error: '请填写教学主题' });
+    const sys = '你是一名经验丰富的教师，擅长编写结构严谨、可直接用于课堂的教案。请用中文输出，包含：教学目标、教学重难点、教学过程（含时间分配）、板书设计、作业布置。';
+    const user = `教学主题：${topic}
+适用年级：${grade || '未指定'}
+课时安排：${period || '未指定'}
+补充要求：${note || '无'}`;
+    const content = await callDeepSeek(sys, user, 0.7);
+    res.json({ success: true, content });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/ai/exercise', async (req, res) => {
+  try {
+    const { topic, types, count, difficulty, grade, answerMode } = req.body;
+    if (!topic) return res.status(400).json({ error: '请填写知识点' });
+    const sys = '你是一名教师，擅长命制高质量的练习题。请按要求的题型和数量生成题目，每题附' + (answerMode === 'analysis' ? '答案与详细解析' : '答案') + '。';
+    const user = `知识点：${topic}
+题型：${(types || []).join('、') || '不限'}
+数量：${count || 10} 题
+难度：${difficulty || '中等'}
+适用年级：${grade || '未指定'}
+答案要求：${answerMode === 'analysis' ? '含解析' : answerMode === 'simple' ? '简洁答案' : '默认'}`;
+    const content = await callDeepSeek(sys, user, 0.6);
+    res.json({ success: true, content });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/ai/ppt', async (req, res) => {
+  try {
+    const { topic, pages, style, outline } = req.body;
+    if (!topic) return res.status(400).json({ error: '请填写PPT主题' });
+    const sys = '你是一名教师，擅长规划教学PPT大纲。请按指定页数输出每页的标题与要点，格式为：第N页：标题 —— 要点。';
+    const user = `PPT主题：${topic}
+页数：${pages || 10} 页
+风格：${style || '清新教育'}
+大纲要求：${outline || '无'}`;
+    const content = await callDeepSeek(sys, user, 0.7);
+    res.json({ success: true, content });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/ai/miniapp', async (req, res) => {
+  try {
+    const { description } = req.body;
+    if (!description) return res.status(400).json({ error: '请描述小程序功能' });
+    const sys = '你是一名前端开发专家，擅长编写可直接在浏览器运行的单文件 HTML 教学小程序（含内联 CSS 与 JS）。只输出完整、可运行的 HTML 代码，用 ```html 代码块包裹，不要包含任何解释文字。';
+    const content = await callDeepSeek(sys, `请生成教学小程序：${description}`, 0.8);
+    res.json({ success: true, content });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ==================== Health ====================
 
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
