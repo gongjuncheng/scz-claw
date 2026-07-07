@@ -215,21 +215,23 @@ app.post('/api/verify-sms-code', async (req, res) => {
 
 // ==================== Email（AI 生成 + 发送 + 附件） ====================
 
-// AI 生成邮件正文
+// AI 生成邮件正文（DeepSeek / OpenAI 兼容接口）
 app.post('/api/email/generate', async (req, res) => {
   try {
     const { subject, content, sender_name } = req.body;
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return res.status(503).json({ error: '未配置 AI 服务（请在 .env 设置 OPENAI_API_KEY）' });
+      return res.status(503).json({ error: '未配置 AI 服务（请在 .env 设置 DEEPSEEK_API_KEY）' });
     }
-    const sys = '你是一名专业的中文邮件助手，帮助教师撰写正式、得体的邮件。只输出邮件正文，不要包含主题行。';
+    const baseUrl = (process.env.AI_BASE_URL || 'https://api.deepseek.com/v1').replace(/\/$/, '');
+    const model = process.env.AI_MODEL || 'deepseek-chat';
+    const sys = '你是一名专业的中文邮件助手，帮助教师撰写正式、得体的邮件。只输出邮件正文，不要包含主题行和问候语前缀。';
     const userMsg = `发件人：${sender_name || '老师'}\n邮件主题：${subject}\n要点/素材：\n${content}`;
-    const r = await fetch(process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions', {
+    const r = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        model,
         messages: [
           { role: 'system', content: sys },
           { role: 'user', content: userMsg }
