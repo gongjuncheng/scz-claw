@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>春志Claw · 教师AI助手</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+  <style>
+    * { margin:0; padding:0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 25%, #f0f9ff 50%, #e8f4f8 75%, #f5f7fa 100%);
+      font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ========== 侧边栏 ========== */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-right: 1px solid rgba(255,255,255,0.6);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: relative;
+      z-index: 100;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .sidebar-logo {
+      padding: 24px 20px 20px;
+      text-align: center;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .sidebar-logo img { width: 44px; height: 44px; border-radius: 14px; object-fit: cover; }
+    .sidebar-logo h1 { font-size: 1.15rem; font-weight: 700; color: #1e293b; margin-top: 8px; letter-spacing: -0.3px; }
+    .sidebar-logo p { font-size: 0.72rem; color: #94a3b8; margin-top: 2px; }
+
+    .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 0.92rem;
+      font-weight: 500;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 4px;
+      user-select: none;
+    }
+    .nav-item:hover { background: rgba(37,99,235,0.06); color: #2563eb; }
+    .nav-item.active { background: linear-gradient(135deg, rgba(37,99,235,0.1), rgba(59,130,246,0.08)); color: #2563eb; font-weight: 600; }
+    .nav-item .icon { font-size: 1.15rem; width: 24px; text-align: center; }
+    .nav-item .badge {
+      margin-left: auto;
+      background: #fbbf24;
+      color: #78350f;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 6px;
+    }
+
+    /* 侧边栏底部 */
+    .sidebar-footer {
+      padding: 16px 12px;
+      border-top: 1px solid rgba(0,0,0,0.06);
+    }
+    .auth-buttons { display: flex; gap: 8px; }
+    .auth-buttons a {
+      flex: 1; text-align: center; padding: 10px 8px; border-radius: 12px;
+      font-size: 0.85rem; font-weight: 600; text-decoration: none; transition: all 0.2s;
+    }
+    .auth-buttons .btn-login { background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; box-shadow: 0 2px 8px rgba(37,99,235,0.2); }
+    .auth-buttons .btn-login:hover { box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+    .auth-buttons .btn-register { background: white; border: 1.5px solid #e2e8f0; color: #475569; }
+    .auth-buttons .btn-register:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+    .user-info {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 14px; cursor: pointer;
+      transition: background 0.2s; position: relative;
+    }
+    .user-info:hover { background: rgba(0,0,0,0.04); }
+    .user-avatar {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 0.9rem;
+    }
+    .user-name { font-size: 0.88rem; font-weight: 600; color: #1e293b; }
+    .user-email { font-size: 0.72rem; color: #94a3b8; }
+
+    .user-dropdown {
+      position: absolute; bottom: 60px; left: 12px; right: 12px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      padding: 8px;
+      display: none;
+      z-index: 200;
+    }
+    .user-dropdown.show { display: block; }
+    .user-dropdown a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 10px;
+      font-size: 0.85rem; color: #475569; text-decoration: none; transition: all 0.2s;
+    }
+    .user-dropdown a:hover { background: #f1f5f9; color: #1e293b; }
+    .user-dropdown a.logout { color: #dc2626; }
+    .user-dropdown a.logout:hover { background: #fef2f2; }
+
+    /* ========== 手机端侧边栏遮罩 ========== */
+    .sidebar-overlay {
+      display: none;
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15,23,42,0.4);
+      backdrop-filter: blur(4px);
+      z-index: 99;
+    }
+    .sidebar-overlay.show { display: block; }
+
+    /* ========== 顶部栏（手机端） ========== */
+    .topbar {
+      display: none;
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 56px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      z-index: 80;
+      align-items: center;
+      padding: 0 16px;
+    }
+    .topbar .menu-btn {
+      width: 40px; height: 40px; border-radius: 10px; border: none;
+      background: transparent; cursor: pointer; font-size: 1.2rem;
+      color: #475569; display: flex; align-items: center; justify-content: center;
+    }
+    .topbar .menu-btn:active { background: #f1f5f9; }
+    .topbar-title { font-size: 1rem; font-weight: 700; color: #1e293b; margin-left: 12px; }
+
+    /* ========== 主工作区 ========== */
+    .main-content {
+      flex: 1;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+    }
+    .welcome-view { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .welcome-view .big-icon { font-size: 4rem; margin-bottom: 16px; }
+    .welcome-view h2 { font-size: 1.6rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+    .welcome-view p { color: #94a3b8; font-size: 0.92rem; max-width: 400px; line-height: 1.6; }
+
+    /* 功能面板 */
+    .panel { display: none; animation: fadeIn 0.25s ease; }
+    .panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .panel-header { margin-bottom: 24px; }
+    .panel-header h2 { font-size: 1.3rem; font-weight: 700; color: #1e293b; }
+    .panel-header p { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
+
+    /* 表单卡片 */
+    .form-card {
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 20px;
+      padding: 28px;
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+      max-width: 720px;
+    }
+    .form-row { margin-bottom: 18px; }
+    .form-row label { display: block; font-size: 0.83rem; font-weight: 600; color: #334155; margin-bottom: 6px; }
+    .form-row input, .form-row textarea, .form-row select {
+      width: 100%; padding: 12px 16px;
+      background: rgba(241,245,249,0.6); border: 1.5px solid #e2e8f0;
+      border-radius: 12px; font-size: 0.95rem; outline: none; transition: all 0.2s;
+      font-family: inherit; color: #1e293b;
+    }
+    .form-row input:focus, .form-row textarea:focus, .form-row select:focus {
+      border-color: #3b82f6; background: white; box-shadow: 0 0 0 4px rgba(59,130,246,0.08);
+    }
+    .form-row textarea { min-height: 100px; resize: vertical; }
+    .form-row .hint { font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.85rem; color: #475569; }
+    .checkbox-row input[type="checkbox"] { accent-color: #2563eb; transform: scale(1.1); }
+
+    .btn-submit {
+      padding: 13px 32px; border-radius: 14px; border: none;
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      color: white; font-weight: 600; font-size: 0.95rem;
+      cursor: pointer; transition: all 0.2s;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.2);
+    }
+    .btn-submit:hover { box-shadow: 0 6px 20px rgba(37,99,235,0.3); transform: translateY(-1px); }
+    .btn-submit:disabled { background: #94a3b8; box-shadow: none; transform: none; cursor: not-allowed; }
+
+    /* 结果区域 */
+    .result-box {
+      margin-top: 20px;
+      background: rgba(241,245,249,0.6);
+      border: 1.5px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 20px;
+      min-height: 120px;
+      display: none;
+    }
+    .result-box.show { display: block; animation: fadeIn 0.3s ease; }
+    .result-box pre { white-space: pre-wrap; word-break: break-word; font-size: 0.88rem; color: #334155; line-height: 1.7; font-family: 'PingFang SC', sans-serif; }
+
+    /* 加载动画 */
+    .loading { display: none; align-items: center; gap: 10px; color: #2563eb; font-size: 0.9rem; margin-top: 16px; }
+    .loading.show { display: flex; }
+    .spinner { width: 20px; height: 20px; border: 2.5px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast 提示 */
+    .toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      padding: 12px 24px; border-radius: 12px; font-size: 0.88rem; font-weight: 500;
+      z-index: 999; display: none; animation: slideDown 0.3s ease;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    .toast.show { display: block; }
+    .toast.warning { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+    .toast.error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .toast.success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .toast.info { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    @keyframes slideDown { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+    /* 游客提示条 */
+    .guest-banner {
+      background: #fef3c7; border: 1px solid #fbbf24; border-radius: 12px;
+      padding: 10px 16px; margin-bottom: 20px; font-size: 0.83rem; color: #92400e;
+      display: none; align-items: center; gap: 8px;
+    }
+    .guest-banner.show { display: flex; }
+    .guest-banner a { color: #2563eb; font-weight: 600; text-decoration: none; }
+    .guest-banner a:hover { text-decoration: underline; }
+
+    /* 同步提示条 */
+    .sync-banner {
+      background: #dbeafe; border: 1px solid #93c5fd; border-radius: 12px;
+      padding: 12px 16px; margin-bottom: 20px; font-size: 0.83rem; color: #1e40af;
+      display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .sync-banner.show { display: flex; }
+    .sync-banner .sync-btn {
+      padding: 6px 16px; border-radius: 8px; border: none; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .sync-banner .sync-btn.primary { background: #2563eb; color: white; }
+    .sync-banner .sync-btn.primary:hover { background: #1d4ed8; }
+    .sync-banner .sync-btn.secondary { background: white; border: 1px solid #cbd5e1; color: #475569; }
+    .sync-banner .sync-btn.secondary:hover { background: #f8fafc; }
+
+    /* ========== AI邮件专属样式 ========== */
+    .email-sender-selector {
+      margin-bottom: 18px;
+    }
+    .email-sender-selector label { display: block; font-size: 0.83rem; font-weight: 600; color: #334155; margin-bottom: 6px; }
+    .sender-current {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: rgba(241,245,249,0.8); border: 1.5px solid #e2e8f0;
+      border-radius: 12px; cursor: pointer; transition: all 0.2s;
+    }
+    .sender-current:hover { border-color: #3b82f6; }
+    .sender-current .sender-icon { font-size: 1.3rem; }
+    .sender-current .sender-info { flex: 1; }
+    .sender-current .sender-email { font-size: 0.9rem; font-weight: 500; color: #1e293b; }
+    .sender-current .sender-status { font-size: 0.72rem; color: #16a34a; font-weight: 500; }
+    .sender-current .sender-arrow { color: #94a3b8; font-size: 0.8rem; }
+
+    /* 发件人下拉 */
+    .sender-dropdown {
+      display: none;
+      margin-top: 6px;
+      background: white; border: 1.5px solid #e2e8f0;
+      border-radius: 12px; overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    .sender-dropdown.show { display: block; animation: fadeIn 0.15s ease; }
+    .sender-option {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; cursor: pointer; transition: background 0.15s;
+    }
+    .sender-option:hover { background: #f1f5f9; }
+    .sender-option .opt-icon { font-size: 1.1rem; }
+    .sender-option .opt-info { flex: 1; }
+    .sender-option .opt-email { font-size: 0.85rem; color: #1e293b; }
+    .sender-option .opt-type { font-size: 0.7rem; color: #94a3b8; }
+    .sender-option.add-new { border-top: 1px solid #e2e8f0; color: #2563eb; font-weight: 500; }
+    .sender-option.add-new .opt-icon { color: #2563eb; }
+
+    /* SMTP配置表单 */
+    .smtp-config-form {
+      display: none;
+      margin-top: 10px;
+      padding: 16px;
+      background: rgba(241,245,249,0.6);
+      border: 1.5px solid #e2e8f0;
+      border-radius: 14px;
+    }
+    .smtp-config-form.show { display: block; animation: fadeIn 0.2s ease; }
+    .smtp-config-form .form-row { margin-bottom: 12px; }
+    .smtp-config-form .close-smtp {
+      float: right; background: none; border: none; font-size: 1.1rem; color: #94a3b8; cursor: pointer; padding: 4px 8px;
+    }
+    .smtp-config-form .close-smtp:hover { color: #475569; }
+
+    /* 指导提示 */
+    .guide-tip {
+      background: #fef3c7; border: 1px solid #fbbf24; border-radius: 10px;
+      padding: 12px 14px; margin-top: 10px; font-size: 0.78rem; color: #78350f; line-height: 1.7;
+    }
+    .guide-tip strong { color: #92400e; }
+    .guide-tip .guide-title { font-weight: 600; margin-bottom: 4px; }
+
+    /* 收件人标签 */
+    .recipients-container {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      padding: 8px 12px;
+      background: rgba(241,245,249,0.6); border: 1.5px solid #e2e8f0;
+      border-radius: 12px; min-height: 42px; align-items: center;
+    }
+    .recipient-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 8px;
+      background: #dbeafe; color: #1e40af; font-size: 0.8rem; font-weight: 500;
+    }
+    .recipient-tag .remove-rcpt {
+      cursor: pointer; color: #6366f1; font-weight: 700; margin-left: 2px;
+      font-size: 0.9rem; line-height: 1;
+    }
+    .recipient-tag .remove-rcpt:hover { color: #dc2626; }
+    .recipient-input {
+      flex: 1; min-width: 160px; border: none; outline: none; background: transparent;
+      font-size: 0.9rem; font-family: inherit; color: #1e293b; padding: 4px 0;
+    }
+    .recipient-input::placeholder { color: #94a3b8; }
+
+    /* 附件区域 */
+    .attachment-area { margin-bottom: 18px; }
+    .attachment-list {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;
+    }
+    .attachment-item {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 10px;
+      background: #f1f5f9; border: 1px solid #e2e8f0;
+      font-size: 0.8rem; color: #475569;
+    }
+    .attachment-item .remove-att {
+      cursor: pointer; color: #94a3b8; font-weight: 700; font-size: 0.9rem;
+    }
+    .attachment-item .remove-att:hover { color: #dc2626; }
+    .attach-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .attach-btn {
+      padding: 8px 14px; border-radius: 10px; border: 1.5px dashed #cbd5e1;
+      background: white; font-size: 0.82rem; color: #475569; cursor: pointer;
+      transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .attach-btn:hover { border-color: #3b82f6; color: #2563eb; background: #eff6ff; }
+    .attach-btn.ai { border-color: #a78bfa; color: #7c3aed; }
+    .attach-btn.ai:hover { background: #f5f3ff; border-color: #7c3aed; }
+
+    /* AI附件生成面板 */
+    .ai-attach-panel {
+      display: none;
+      margin-top: 10px;
+      padding: 16px;
+      background: rgba(245,243,255,0.6);
+      border: 1.5px solid #ddd6fe;
+      border-radius: 14px;
+    }
+    .ai-attach-panel.show { display: block; animation: fadeIn 0.2s ease; }
+    .ai-attach-panel .close-ai-attach {
+      float: right; background: none; border: none; font-size: 1.1rem; color: #94a3b8; cursor: pointer; padding: 4px 8px;
+    }
+    .ai-attach-panel .close-ai-attach:hover { color: #475569; }
+    .file-type-selector { display: flex; gap: 8px; margin-bottom: 12px; }
+    .file-type-btn {
+      padding: 8px 16px; border-radius: 10px; border: 1.5px solid #e2e8f0;
+      background: white; font-size: 0.82rem; color: #475569; cursor: pointer; transition: all 0.2s;
+    }
+    .file-type-btn.active, .file-type-btn:hover {
+      border-color: #7c3aed; color: #7c3aed; background: #f5f3ff;
+    }
+
+    /* 邮件历史记录 */
+    .email-history {
+      margin-top: 20px;
+      padding: 16px;
+      background: rgba(255,255,255,0.5);
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+    }
+    .email-history h4 { font-size: 0.88rem; font-weight: 600; color: #334155; margin-bottom: 8px; }
+    .history-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 8px;
+      font-size: 0.8rem; color: #475569; transition: background 0.15s;
+    }
+    .history-item:hover { background: #f1f5f9; }
+    .history-item .hist-icon { color: #94a3b8; font-size: 0.9rem; }
+    .history-item .hist-title { flex: 1; }
+    .history-item .hist-time { color: #94a3b8; font-size: 0.72rem; }
+
+    /* ========== 响应式 ========== */
+    @media (max-width: 768px) {
+      .sidebar { position: fixed; top: 0; left: 0; transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .topbar { display: flex; }
+      .main-content { padding: 72px 16px 24px; }
+      .form-card { padding: 20px 16px; }
+      .welcome-view h2 { font-size: 1.3rem; }
+    }
+    @media (min-width: 769px) {
+      .sidebar-overlay { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 手机端顶部栏 -->
+  <div class="topbar">
+    <button class="menu-btn" id="menuBtn"><i class="fa fa-bars"></i></button>
+    <span class="topbar-title">春志Claw</span>
+  </div>
+
+  <!-- 侧边栏遮罩 -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ========== 侧边栏 ========== -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <img src="https://jbwmyqvlujytnjpgsqed.supabase.co/storage/v1/object/public/others/f0ba2146b733756d-removebg-preview.png" alt="Claw">
+      <h1>春志Claw</h1>
+      <p>教师AI助手 · 高效办公</p>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-item active" data-panel="welcome">
+        <span class="icon">🏠</span> 工作台
+      </div>
+      <div class="nav-item" data-panel="lesson">
+        <span class="icon">📘</span> 教案设计
+      </div>
+      <div class="nav-item" data-panel="exercise">
+        <span class="icon">📋</span> 习题制作
+        <span class="badge">新</span>
+      </div>
+      <div class="nav-item" data-panel="ppt">
+        <span class="icon">📊</span> 教学PPT
+      </div>
+      <div class="nav-item" data-panel="miniapp">
+        <span class="icon">📱</span> 教学小程序
+      </div>
+      <div class="nav-item" data-panel="email">
+        <span class="icon">✉️</span> AI邮件
+      </div>
+    </div>
+
+    <!-- 侧边栏底部 -->
+    <div class="sidebar-footer">
+      <!-- 未登录 -->
+      <div class="auth-buttons" id="authButtons">
+        <a href="auth.html" class="btn-login">登录</a>
+        <a href="auth.html" class="btn-register">注册</a>
+      </div>
+      <!-- 已登录 -->
+      <div class="user-info" id="userInfo" style="display:none;">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div>
+          <div class="user-name" id="userName">用户</div>
+          <div class="user-email" id="userEmail">email</div>
+        </div>
+        <div class="user-dropdown" id="userDropdown">
+          <a href="account.html"><i class="fa fa-user-circle"></i> 账号设置</a>
+          <a href="#" class="logout" id="logoutBtn"><i class="fa fa-sign-out"></i> 退出登录</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 主工作区 ========== -->
+  <div class="main-content" id="mainContent">
+
+    <!-- 欢迎页 -->
+    <div class="panel active" id="panel-welcome">
+      <div class="welcome-view">
+        <div class="big-icon">🐾</div>
+        <h2>欢迎使用春志Claw</h2>
+        <p>请从左侧菜单选择您需要的功能，AI 将协助您高效完成教学准备工作。</p>
+      </div>
+    </div>
+
+    <!-- 教案设计 -->
+    <div class="panel" id="panel-lesson">
+      <div class="panel-header">
+        <h2>📘 教案设计</h2>
+        <p>AI 帮您快速生成结构化教学教案</p>
+      </div>
+      <div class="guest-banner" id="guestBanner-lesson">
+        <i class="fa fa-info-circle"></i>
+        <span>由于未登录，配置将保存在浏览器本地。<a href="#" onclick="showSyncBanner();return false;">登录后可将配置同步到云端</a>，跨设备使用</span>
+      </div>
+      <div class="form-card">
+        <div class="form-row">
+          <label>教学主题</label>
+          <input type="text" id="lessonTopic" placeholder="例如：二次函数图像与性质">
+        </div>
+        <div class="form-row">
+          <label>适用年级</label>
+          <select id="lessonGrade">
+            <option value="">请选择年级</option>
+            <option>小学一年级</option><option>小学二年级</option><option>小学三年级</option>
+            <option>小学四年级</option><option>小学五年级</option><option>小学六年级</option>
+            <option>初中一年级</option><option>初中二年级</option><option>初中三年级</option>
+            <option>高中一年级</option><option>高中二年级</option><option>高中三年级</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>课时安排</label>
+          <select id="lessonPeriod">
+            <option value="">请选择课时</option>
+            <option>1课时（45分钟）</option>
+            <option>2课时（90分钟）</option>
+            <option>3课时（135分钟）</option>
+            <option>4课时及以上</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>补充要求（可选）</label>
+          <textarea id="lessonNote" placeholder="如：需要包含探究式学习环节、重点难点分析等"></textarea>
+        </div>
+        <button class="btn-submit" id="btnLesson">生成教案</button>
+        <div class="loading" id="loading-lesson"><div class="spinner"></div>AI 正在为您生成教案，请稍候...</div>
+        <div class="result-box" id="result-lesson"><pre id="pre-lesson"></pre></div>
+      </div>
+    </div>
+
+    <!-- 习题制作 -->
+    <div class="panel" id="panel-exercise">
+      <div class="panel-header">
+        <h2>📋 习题制作</h2>
+        <p>智能生成配套练习题目，支持多种题型</p>
+      </div>
+      <div class="guest-banner" id="guestBanner-exercise">
+        <i class="fa fa-info-circle"></i>
+        <span>由于未登录，配置将保存在浏览器本地。<a href="#" onclick="showSyncBanner();return false;">登录后可将配置同步到云端</a>，跨设备使用</span>
+      </div>
+      <div class="form-card">
+        <div class="form-row">
+          <label>知识点 / 章节</label>
+          <input type="text" id="exerTopic" placeholder="例如：一元二次方程的解法">
+        </div>
+        <div class="form-row">
+          <label>题型（可多选）</label>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            <label class="checkbox-row"><input type="checkbox" value="选择题"> 选择题</label>
+            <label class="checkbox-row"><input type="checkbox" value="填空题"> 填空题</label>
+            <label class="checkbox-row"><input type="checkbox" value="解答题"> 解答题</label>
+            <label class="checkbox-row"><input type="checkbox" value="判断题"> 判断题</label>
+            <label class="checkbox-row"><input type="checkbox" value="应用题"> 应用题</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>题目数量</label>
+          <select id="exerCount">
+            <option value="5">5 题</option>
+            <option value="10" selected>10 题</option>
+            <option value="15">15 题</option>
+            <option value="20">20 题</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>难度</label>
+          <select id="exerDifficulty">
+            <option value="基础">基础</option>
+            <option value="中等" selected>中等</option>
+            <option value="较难">较难</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>适用年级</label>
+          <select id="exerGrade">
+            <option value="">请选择年级</option>
+            <option>小学一年级</option><option>小学二年级</option><option>小学三年级</option>
+            <option>小学四年级</option><option>小学五年级</option><option>小学六年级</option>
+            <option>初中一年级</option><option>初中二年级</option><option>初中三年级</option>
+            <option>高中一年级</option><option>高中二年级</option><option>高中三年级</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>答案选项</label>
+          <div class="checkbox-row"><input type="checkbox" id="exerSimpleAnswer" checked> 简洁答案</div>
+          <div class="checkbox-row"><input type="checkbox" id="exerAnalysisAnswer"> 含解析答案</div>
+          <p class="hint">可都选、只选一个、或都不选</p>
+        </div>
+        <button class="btn-submit" id="btnExercise">生成习题</button>
+        <div class="loading" id="loading-exercise"><div class="spinner"></div>AI 正在为您生成习题，请稍候...</div>
+        <div class="result-box" id="result-exercise"><pre id="pre-exercise"></pre></div>
+      </div>
+    </div>
+
+    <!-- 教学PPT -->
+    <div class="panel" id="panel-ppt">
+      <div class="panel-header">
+        <h2>📊 教学PPT</h2>
+        <p>一键生成教学演示文稿</p>
+      </div>
+      <div class="guest-banner" id="guestBanner-ppt">
+        <i class="fa fa-info-circle"></i>
+        <span>由于未登录，配置将保存在浏览器本地。<a href="#" onclick="showSyncBanner();return false;">登录后可将配置同步到云端</a>，跨设备使用</span>
+      </div>
+      <div class="form-card">
+        <div class="form-row">
+          <label>PPT主题</label>
+          <input type="text" id="pptTopic" placeholder="例如：光合作用的过程">
+        </div>
+        <div class="form-row">
+          <label>页数</label>
+          <select id="pptPages">
+            <option value="5">5 页</option>
+            <option value="10" selected>10 页</option>
+            <option value="15">15 页</option>
+            <option value="20">20 页</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>风格</label>
+          <select id="pptStyle">
+            <option value="简约商务">简约商务</option>
+            <option value="清新教育" selected>清新教育</option>
+            <option value="科技感">科技感</option>
+            <option value="卡通可爱">卡通可爱</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>大纲要求（可选）</label>
+          <textarea id="pptOutline" placeholder="如：需要包含导入、新课讲授、课堂练习、小结作业等环节"></textarea>
+        </div>
+        <button class="btn-submit" id="btnPpt">生成PPT</button>
+        <div class="loading" id="loading-ppt"><div class="spinner"></div>AI 正在为您生成PPT，请稍候...</div>
+        <div class="result-box" id="result-ppt"><pre id="pre-ppt"></pre></div>
+      </div>
+    </div>
+
+    <!-- 教学小程序 -->
+    <div class="panel" id="panel-miniapp">
+      <div class="panel-header">
+        <h2>📱 教学小程序</h2>
+        <p>生成HTML教学小程序并一键推送至GitHub</p>
+      </div>
+      <div class="guest-banner" id="guestBanner-miniapp">
+        <i class="fa fa-info-circle"></i>
+        <span>由于未登录，配置将保存在浏览器本地。<a href="#" onclick="showSyncBanner();return false;">登录后可将配置同步到云端</a>，跨设备使用</span>
+      </div>
+      <div class="form-card">
+        <div class="form-row">
+          <label>小程序描述</label>
+          <textarea id="miniappDesc" placeholder="描述您想要的教学小程序功能，如：一个可以随机点名的课堂助手"></textarea>
+        </div>
+        <div class="form-row">
+          <label>GitHub 仓库（可选，用于一键推送）</label>
+          <input type="text" id="miniappRepo" placeholder="例如：yourname/teaching-app">
+          <p class="hint">格式：用户名/仓库名，留空则仅生成文件</p>
+        </div>
+        <div class="form-row">
+          <label>GitHub Token（可选）</label>
+          <input type="password" id="miniappToken" placeholder="ghp_xxxxxxxxxxxx">
+          <p class="hint">需要 repo 权限，仅用于推送，不会保存</p>
+        </div>
+        <button class="btn-submit" id="btnMiniapp">生成小程序</button>
+        <div class="loading" id="loading-miniapp"><div class="spinner"></div>AI 正在为您生成小程序，请稍候...</div>
+        <div class="result-box" id="result-miniapp"><pre id="pre-miniapp"></pre></div>
+      </div>
+    </div>
+
+    <!-- ========== AI 邮件（完整版） ========== -->
+    <div class="panel" id="panel-email">
+      <div class="panel-header">
+        <h2>✉️ AI 邮件</h2>
+        <p>智能撰写邮件内容，支持附件与一键发送</p>
+      </div>
+      <div class="guest-banner" id="guestBanner-email">
+        <i class="fa fa-info-circle"></i>
+        <span>由于未登录，配置将保存在浏览器本地。<a href="#" onclick="showSyncBanner();return false;">登录后可将配置同步到云端</a>，跨设备使用</span>
+      </div>
+
+      <!-- 同步提示条（登录后检测到本地数据） -->
+      <div class="sync-banner" id="syncBanner">
+        <i class="fa fa-cloud-upload"></i>
+        <span>检测到本地有邮箱配置和历史记录，是否同步到云端？</span>
+        <button class="sync-btn primary" id="syncNowBtn">同步到云端</button>
+        <button class="sync-btn secondary" id="syncDismissBtn">暂不</button>
+      </div>
+
+      <div class="form-card">
+
+        <!-- ===== 发件邮箱选择器 ===== -->
+        <div class="email-sender-selector">
+          <label>发件邮箱</label>
+          <div class="sender-current" id="senderCurrent">
+            <span class="sender-icon">📧</span>
+            <div class="sender-info">
+              <div class="sender-email" id="senderEmailDisplay">还没有邮箱，抓紧配置一个吧</div>
+              <div class="sender-status" id="senderStatus"></div>
+            </div>
+            <span class="sender-arrow"><i class="fa fa-chevron-down"></i></span>
+          </div>
+          <div class="sender-dropdown" id="senderDropdown">
+            <div id="senderList"></div>
+            <div class="sender-option add-new" id="addSenderBtn">
+              <span class="opt-icon">➕</span>
+              <div class="opt-info">
+                <div class="opt-email">添加新邮箱</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SMTP 配置表单（添加/编辑） -->
+          <div class="smtp-config-form" id="smtpConfigForm">
+            <button class="close-smtp" id="closeSmtpBtn">&times;</button>
+            <h4 style="font-size:0.9rem; font-weight:600; color:#1e293b; margin-bottom:12px;">📡 SMTP 邮箱配置</h4>
+            <div class="form-row">
+              <label>邮箱地址</label>
+              <input type="email" id="smtpEmail" placeholder="例如：123456@qq.com" oninput="autoDetectSMTP()">
+            </div>
+            <div class="form-row">
+              <label>SMTP 服务器</label>
+              <input type="text" id="smtpHost" placeholder="自动识别中...">
+            </div>
+            <div style="display:flex; gap:10px;">
+              <div class="form-row" style="flex:1;">
+                <label>端口</label>
+                <input type="text" id="smtpPort" placeholder="465" style="width:100%;">
+              </div>
+              <div class="form-row" style="flex:1;">
+                <label>加密方式</label>
+                <select id="smtpSecure" style="width:100%;">
+                  <option value="true" selected>SSL / TLS</option>
+                  <option value="false">无加密</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <label id="smtpPassLabel">授权码 / 密码</label>
+              <input type="password" id="smtpPass" placeholder="请输入授权码或密码">
+              <p class="hint" id="smtpPassHint">QQ、163、126 邮箱需使用授权码（非登录密码），详见下方引导</p>
+            </div>
+            <!-- 授权码获取引导 -->
+            <div class="guide-tip" id="guideTip" style="display:none;">
+              <div class="guide-title" id="guideTitle"></div>
+              <div id="guideContent"></div>
+            </div>
+            <button class="btn-submit" id="saveSmtpBtn" style="padding:10px 24px; font-size:0.88rem;">保存配置</button>
+          </div>
+        </div>
+
+        <!-- ===== 收件人（多收件人标签） ===== -->
+        <div class="form-row">
+          <label>收件人（可添加多个）</label>
+          <div class="recipients-container" id="recipientsContainer">
+            <input type="email" class="recipient-input" id="recipientInput" placeholder="输入邮箱地址，回车或点击添加">
+          </div>
+        </div>
+
+        <!-- ===== 邮件主题 ===== -->
+        <div class="form-row">
+          <label>邮件主题</label>
+          <input type="text" id="emailSubject" placeholder="例如：关于期中考试的通知">
+        </div>
+
+        <!-- ===== 邮件要点 ===== -->
+        <div class="form-row">
+          <label>邮件要点</label>
+          <textarea id="emailContent" placeholder="列出您想表达的关键内容，AI将帮您润色成正式邮件"></textarea>
+        </div>
+
+        <!-- ===== 附件 ===== -->
+        <div class="attachment-area">
+          <label style="display:block; font-size:0.83rem; font-weight:600; color:#334155; margin-bottom:6px;">附件</label>
+          <div class="attachment-list" id="attachmentList"></div>
+          <div class="attach-actions">
+            <label class="attach-btn">
+              <i class="fa fa-folder-open"></i> 上传文件
+              <input type="file" id="fileInput" multiple style="display:none;" onchange="handleFileSelect(event)">
+            </label>
+            <button class="attach-btn ai" id="aiAttachBtn">
+              <i class="fa fa-magic"></i> AI 生成附件
+            </button>
+          </div>
+
+          <!-- AI 附件生成面板 -->
+          <div class="ai-attach-panel" id="aiAttachPanel">
+            <button class="close-ai-attach" id="closeAiAttach">&times;</button>
+            <h4 style="font-size:0.9rem; font-weight:600; color:#334155; margin-bottom:10px;">✨ AI 生成附件</h4>
+            <div class="file-type-selector" id="fileTypeSelector">
+              <button class="file-type-btn active" data-type="docx">📄 Word (.docx)</button>
+              <button class="file-type-btn" data-type="xlsx">📊 Excel (.xlsx)</button>
+              <button class="file-type-btn" data-type="pdf">📑 PDF (.pdf)</button>
+            </div>
+            <div class="form-row">
+              <label>附件内容描述</label>
+              <textarea id="aiAttachDesc" placeholder="请描述附件需要包含的内容..." style="min-height:80px;"></textarea>
+            </div>
+            <button class="btn-submit" id="genAttachBtn" style="padding:10px 24px; font-size:0.88rem;">生成附件</button>
+            <div class="loading" id="loading-attach"><div class="spinner"></div>AI 正在生成附件，请稍候...</div>
+          </div>
+        </div>
+
+        <!-- ===== 署名 ===== -->
+        <div class="form-row">
+          <label>发件人署名</label>
+          <input type="text" id="emailSender" placeholder="例如：张老师">
+        </div>
+
+        <!-- ===== 操作按钮 ===== -->
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn-submit" id="btnEmailGen">🤖 生成邮件内容</button>
+          <button class="btn-submit" id="btnEmailSend" style="background: linear-gradient(135deg, #16a34a, #22c55e); box-shadow: 0 4px 16px rgba(22,163,74,0.2);">📤 发送邮件</button>
+        </div>
+        <div class="loading" id="loading-email"><div class="spinner"></div>AI 正在为您撰写邮件，请稍候...</div>
+        <div class="result-box" id="result-email"><pre id="pre-email"></pre></div>
+
+        <!-- ===== 最近发送记录 ===== -->
+        <div class="email-history" id="emailHistory">
+          <h4>📋 最近发送记录</h4>
+          <div id="historyList" style="color:#94a3b8; font-size:0.82rem;">暂无记录</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end main-content -->
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function() {
+      const SUPABASE_URL = 'https://jbwmyqvlujytnjpgsqed.supabase.co';
+      const SUPABASE_ANON_KEY = 'sb_publishable_RSF_RRme6hI32KQqXBtWlA_httMuqbe';
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const SERVER_URL = 'http://93.115.101.178:11827';
+
+      let currentUser = null;
+
+      // ========== 浏览器指纹 ==========
+      function getFingerprint() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial';
+        ctx.fillText('fingerprint', 2, 2);
+        const canvasData = canvas.toDataURL();
+        const raw = canvasData + navigator.userAgent + screen.width + screen.height + Intl.DateTimeFormat().resolvedOptions().timeZone;
+        let hash = 0;
+        for (let i = 0; i < raw.length; i++) {
+          hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+          hash |= 0;
+        }
+        return 'fp_' + Math.abs(hash).toString(36);
+      }
+
+      function getGuestCount(fp) {
+        const data = JSON.parse(localStorage.getItem('guest_usage') || '{}');
+        return data[fp] || 0;
+      }
+      function incGuestCount(fp) {
+        const data = JSON.parse(localStorage.getItem('guest_usage') || '{}');
+        data[fp] = (data[fp] || 0) + 1;
+        localStorage.setItem('guest_usage', JSON.stringify(data));
+      }
+
+      const guestFP = getFingerprint();
+
+      // ========== 游客计数更新 ==========
+      function updateGuestUI(panelId) {
+        const banner = document.getElementById('guestBanner-' + panelId);
+        if (!banner) return;
+        const count = getGuestCount(guestFP);
+        if (count >= 2) {
+          banner.classList.add('show');
+        } else if (count >= 1) {
+          banner.classList.add('show');
+        }
+      }
+
+      function checkGuestLimit(panelId) {
+        if (currentUser) return true;
+        const count = getGuestCount(guestFP);
+        if (count >= 2) {
+          showToast('游客体验次数已用完，请登录后继续使用', 'warning');
+          return false;
+        }
+        incGuestCount(guestFP);
+        updateGuestUI(panelId);
+        return true;
+      }
+
+      // ========== 侧边栏导航 ==========
+      const navItems = document.querySelectorAll('.nav-item');
+      const panels = document.querySelectorAll('.panel');
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      const menuBtn = document.getElementById('menuBtn');
+
+      function switchPanel(panelId) {
+        navItems.forEach(n => n.classList.toggle('active', n.dataset.panel === panelId));
+        panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + panelId));
+        if (window.innerWidth <= 768) {
+          sidebar.classList.remove('open');
+          overlay.classList.remove('show');
+        }
+        if (panelId !== 'welcome') updateGuestUI(panelId);
+      }
+
+      navItems.forEach(item => {
+        item.addEventListener('click', () => switchPanel(item.dataset.panel));
+      });
+
+      menuBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('show');
+      });
+      overlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('show');
+      });
+
+      // ========== 用户状态 ==========
+      async function initAuth() {
+        const { data: { user } } = await supabase.auth.getUser();
+        currentUser = user;
+        const authBtns = document.getElementById('authButtons');
+        const userInfo = document.getElementById('userInfo');
+
+        if (user) {
+          authBtns.style.display = 'none';
+          userInfo.style.display = 'flex';
+          const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single();
+          const name = profile?.username || user.email?.split('@')[0] || '用户';
+          const email = user.email || '';
+          document.getElementById('userName').textContent = name;
+          document.getElementById('userEmail').textContent = email;
+          document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
+
+          // 检测本地是否有数据需要同步
+          checkAndShowSyncBanner();
+          // 从云端加载邮箱配置
+          await loadCloudEmailConfigs();
+          // 从云端加载历史
+          await loadCloudHistory();
+        } else {
+          authBtns.style.display = 'flex';
+          userInfo.style.display = 'none';
+          // 未登录：从本地加载邮箱配置
+          loadLocalEmailConfigs();
+        }
+      }
+
+      // 用户下拉
+      document.getElementById('userInfo').addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('userDropdown').classList.toggle('show');
+      });
+      document.addEventListener('click', () => {
+        document.getElementById('userDropdown').classList.remove('show');
+      });
+
+      document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+        e.preventDefault();
+        await supabase.auth.signOut();
+        window.location.reload();
+      });
+
+      // ========== Toast ==========
+      function showToast(msg, type = 'warning') {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast show ' + type;
+        setTimeout(() => t.classList.remove('show'), 3500);
+      }
+
+      // ========== 同步提示 ==========
+      function checkAndShowSyncBanner() {
+        const localConfigs = JSON.parse(localStorage.getItem('claw_email_accounts') || '[]');
+        const localHistory = JSON.parse(localStorage.getItem('claw_history') || '[]');
+        if (localConfigs.length > 0 || localHistory.length > 0) {
+          document.getElementById('syncBanner').classList.add('show');
+        }
+      }
+
+      window.showSyncBanner = function() {
+        document.getElementById('syncBanner').classList.add('show');
+      };
+
+      document.getElementById('syncNowBtn').addEventListener('click', async () => {
+        await syncLocalToCloud();
+        document.getElementById('syncBanner').classList.remove('show');
+        showToast('同步成功！配置已保存到云端', 'success');
+      });
+      document.getElementById('syncDismissBtn').addEventListener('click', () => {
+        document.getElementById('syncBanner').classList.remove('show');
+      });
+
+      async function syncLocalToCloud() {
+        if (!currentUser) return;
+        const configs = JSON.parse(localStorage.getItem('claw_email_accounts') || '[]');
+        const history = JSON.parse(localStorage.getItem('claw_history') || '[]');
+
+        for (const cfg of configs) {
+          await supabase.from('claw_email_configs').upsert({
+            user_id: currentUser.id,
+            smtp_host: cfg.smtp_host,
+            smtp_port: parseInt(cfg.smtp_port) || 465,
+            smtp_secure: cfg.smtp_secure !== 'false',
+            smtp_user: cfg.smtp_user,
+            smtp_pass_encrypted: cfg.smtp_pass_encrypted,
+            is_verified: cfg.is_verified || false
+          });
+        }
+
+        for (const item of history) {
+          await supabase.from('claw_history').insert({
+            user_id: currentUser.id,
+            type: item.type || 'email',
+            title: item.title || '',
+            content: item.content || ''
+          });
+        }
+
+        // 标记已同步
+        localStorage.setItem('claw_synced', 'true');
+      }
+
+      // ========== 邮箱配置：本地存储 ==========
+      function getLocalAccounts() {
+        return JSON.parse(localStorage.getItem('claw_email_accounts') || '[]');
+      }
+      function saveLocalAccounts(accounts) {
+        localStorage.setItem('claw_email_accounts', JSON.stringify(accounts));
+      }
+      function getLocalHistory() {
+        return JSON.parse(localStorage.getItem('claw_history') || '[]');
+      }
+      function saveLocalHistory(history) {
+        localStorage.setItem('claw_history', JSON.stringify(history));
+      }
+
+      // ========== 邮箱配置：云端加载 ==========
+      async function loadCloudEmailConfigs() {
+        if (!currentUser) return;
+        const { data } = await supabase
+          .from('claw_email_configs')
+          .select('*')
+          .eq('user_id', currentUser.id);
+        if (data && data.length > 0) {
+          // 云端数据写入本地
+          const accounts = data.map(c => ({
+            smtp_host: c.smtp_host,
+            smtp_port: c.smtp_port,
+            smtp_secure: c.smtp_secure,
+            smtp_user: c.smtp_user,
+            smtp_pass_encrypted: c.smtp_pass_encrypted,
+            is_verified: c.is_verified
+          }));
+          saveLocalAccounts(accounts);
+          renderSenderList();
+        }
+      }
+
+      async function loadCloudHistory() {
+        if (!currentUser) return;
+        const { data } = await supabase
+          .from('claw_history')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        if (data && data.length > 0) {
+          const history = data.map(h => ({
+            type: h.type,
+            title: h.title,
+            content: h.content,
+            created_at: h.created_at
+          }));
+          saveLocalHistory(history);
+          renderHistory();
+        }
+      }
+
+      // ========== 发件邮箱选择器 ==========
+      function loadLocalEmailConfigs() {
+        renderSenderList();
+        renderHistory();
+      }
+
+      function renderSenderList() {
+        const accounts = getLocalAccounts();
+        const listEl = document.getElementById('senderList');
+        const displayEl = document.getElementById('senderEmailDisplay');
+        const statusEl = document.getElementById('senderStatus');
+
+        if (accounts.length === 0) {
+          displayEl.textContent = '还没有邮箱，抓紧配置一个吧';
+          statusEl.textContent = '';
+          listEl.innerHTML = '';
+          return;
+        }
+
+        // 找到当前选中的
+        const activeEmail = localStorage.getItem('claw_active_email') || accounts[0].smtp_user;
+        let html = '';
+        accounts.forEach(acc => {
+          const isActive = acc.smtp_user === activeEmail;
+          const provider = getEmailProvider(acc.smtp_user);
+          html += `
+            <div class="sender-option" data-email="${acc.smtp_user}" onclick="selectSender('${acc.smtp_user}')">
+              <span class="opt-icon">${isActive ? '🔵' : '⚪'}</span>
+              <div class="opt-info">
+                <div class="opt-email">${acc.smtp_user}</div>
+                <div class="opt-type">${provider} ${acc.is_verified ? '✓已验证' : ''}</div>
+              </div>
+            </div>
+          `;
+        });
+        listEl.innerHTML = html;
+
+        // 更新显示
+        const activeAcc = accounts.find(a => a.smtp_user === activeEmail);
+        if (activeAcc) {
+          displayEl.textContent = activeEmail;
+          statusEl.textContent = activeAcc.is_verified ? '✓ 已验证' : '未验证';
+          statusEl.style.color = activeAcc.is_verified ? '#16a34a' : '#dc2626';
+        }
+      }
+
+      window.selectSender = function(email) {
+        localStorage.setItem('claw_active_email', email);
+        renderSenderList();
+        document.getElementById('senderDropdown').classList.remove('show');
+      };
+
+      // 发件人下拉
+      document.getElementById('senderCurrent').addEventListener('click', () => {
+        document.getElementById('senderDropdown').classList.toggle('show');
+        document.getElementById('smtpConfigForm').classList.remove('show');
+      });
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.email-sender-selector')) {
+          document.getElementById('senderDropdown').classList.remove('show');
+        }
+      });
+
+      // 添加新邮箱
+      document.getElementById('addSenderBtn').addEventListener('click', () => {
+        document.getElementById('senderDropdown').classList.remove('show');
+        document.getElementById('smtpConfigForm').classList.add('show');
+        document.getElementById('smtpEmail').value = '';
+        document.getElementById('smtpHost').value = '';
+        document.getElementById('smtpPort').value = '465';
+        document.getElementById('smtpSecure').value = 'true';
+        document.getElementById('smtpPass').value = '';
+        document.getElementById('guideTip').style.display = 'none';
+      });
+
+      document.getElementById('closeSmtpBtn').addEventListener('click', () => {
+        document.getElementById('smtpConfigForm').classList.remove('show');
+      });
+
+      // ========== 邮箱自动识别 ==========
+      window.autoDetectSMTP = function() {
+        const email = document.getElementById('smtpEmail').value.trim();
+        if (!email) {
+          document.getElementById('smtpHost').value = '';
+          document.getElementById('guideTip').style.display = 'none';
+          return;
+        }
+
+        const domain = email.split('@')[1]?.toLowerCase() || '';
+        const providers = {
+          'qq.com': { host: 'smtp.qq.com', port: '465', secure: 'true', name: 'QQ邮箱', passType: 'auth', passLabel: '授权码（非邮箱密码）' },
+          '163.com': { host: 'smtp.163.com', port: '465', secure: 'true', name: '163邮箱', passType: 'auth', passLabel: '授权码（非邮箱密码）' },
+          '126.com': { host: 'smtp.126.com', port: '465', secure: 'true', name: '126邮箱', passType: 'auth', passLabel: '授权码（非邮箱密码）' },
+          'sina.com': { host: 'smtp.sina.com', port: '465', secure: 'true', name: '新浪邮箱', passType: 'password', passLabel: '密码' },
+          'sina.cn': { host: 'smtp.sina.cn', port: '465', secure: 'true', name: '新浪邮箱', passType: 'password', passLabel: '密码' },
+          'sohu.com': { host: 'smtp.sohu.com', port: '465', secure: 'true', name: '搜狐邮箱', passType: 'password', passLabel: '密码' },
+          'foxmail.com': { host: 'smtp.qq.com', port: '465', secure: 'true', name: 'Foxmail', passType: 'auth', passLabel: '授权码（非邮箱密码）' },
+          'gmail.com': { host: 'smtp.gmail.com', port: '587', secure: 'false', name: 'Gmail', passType: 'password', passLabel: '密码（需开启不够安全的应用）' },
+          'outlook.com': { host: 'smtp-mail.outlook.com', port: '587', secure: 'false', name: 'Outlook', passType: 'password', passLabel: '密码' },
+          'hotmail.com': { host: 'smtp-mail.outlook.com', port: '587', secure: 'false', name: 'Hotmail', passType: 'password', passLabel: '密码' },
+        };
+
+        const provider = providers[domain];
+        if (provider) {
+          document.getElementById('smtpHost').value = provider.host;
+          document.getElementById('smtpPort').value = provider.port;
+          document.getElementById('smtpSecure').value = provider.secure;
+          document.getElementById('smtpPassLabel').textContent = provider.passLabel;
+          document.getElementById('smtpPassHint').textContent = provider.passType === 'auth' ? 'QQ、163、126 邮箱需使用授权码（非登录密码），详见下方引导' : '请输入您的邮箱密码';
+
+          // 显示引导
+          if (provider.passType === 'auth') {
+            showGuide(domain);
+          } else {
+            document.getElementById('guideTip').style.display = 'none';
+          }
+        } else {
+          document.getElementById('smtpHost').value = '';
+          document.getElementById('guideTip').style.display = 'none';
+        }
+      };
+
+      function showGuide(domain) {
+        const guides = {
+          'qq.com': {
+            title: '📖 如何获取 QQ 邮箱授权码？',
+            steps: '① 登录 QQ 邮箱 → 点击顶部「设置」→ 选择「账户」标签<br>② 找到「POP3/IMAP/SMTP/Exchange/CardDAV/CalDAV服务」<br>③ 开启「IMAP/SMTP服务」<br>④ 按提示用手机发送短信验证<br>⑤ 验证成功后显示 16 位授权码 → 复制填到上方输入框'
+          },
+          '163.com': {
+            title: '📖 如何获取 163 邮箱授权码？',
+            steps: '① 登录 163 邮箱 → 点击「设置」→「POP3/SMTP/IMAP」<br>② 开启「SMTP 服务」<br>③ 设置「客户端授权密码」（不是邮箱登录密码）<br>④ 复制授权码填到上方输入框'
+          },
+          '126.com': {
+            title: '📖 如何获取 126 邮箱授权码？',
+            steps: '① 登录 126 邮箱 → 点击「设置」→「POP3/SMTP/IMAP」<br>② 开启「SMTP 服务」<br>③ 设置「客户端授权密码」（不是邮箱登录密码）<br>④ 复制授权码填到上方输入框'
+          }
+        };
+
+        const guide = guides[domain];
+        if (guide) {
+          document.getElementById('guideTitle').textContent = guide.title;
+          document.getElementById('guideContent').innerHTML = guide.steps;
+          document.getElementById('guideTip').style.display = 'block';
+        } else {
+          document.getElementById('guideTip').style.display = 'none';
+        }
+      }
+
+      function getEmailProvider(email) {
+        const domain = email.split('@')[1]?.toLowerCase() || '';
+        const names = {
+          'qq.com': 'QQ邮箱', '163.com': '163邮箱', '126.com': '126邮箱',
+          'sina.com': '新浪邮箱', 'sina.cn': '新浪邮箱', 'sohu.com': '搜狐邮箱',
+          'foxmail.com': 'Foxmail', 'gmail.com': 'Gmail', 'outlook.com': 'Outlook',
+          'hotmail.com': 'Hotmail'
+        };
+        return names[domain] || domain;
+      }
+
+      // 简单加密（XOR + Base64，前端够用）
+      function encryptPass(pass) {
+        const key = 'claw_2025';
+        let result = '';
+        for (let i = 0; i < pass.length; i++) {
+          result += String.fromCharCode(pass.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+        }
+        return btoa(result);
+      }
+
+      // 保存 SMTP 配置
+      document.getElementById('saveSmtpBtn').addEventListener('click', async () => {
+        const email = document.getElementById('smtpEmail').value.trim();
+        const host = document.getElementById('smtpHost').value.trim();
+        const port = document.getElementById('smtpPort').value.trim();
+        const secure = document.getElementById('smtpSecure').value;
+        const pass = document.getElementById('smtpPass').value;
+
+        if (!email || !host || !port || !pass) {
+          showToast('请填写完整信息', 'error');
+          return;
+        }
+
+        const config = {
+          smtp_host: host,
+          smtp_port: port,
+          smtp_secure: secure,
+          smtp_user: email,
+          smtp_pass_encrypted: encryptPass(pass),
+          is_verified: false
+        };
+
+        // 存本地
+        const accounts = getLocalAccounts();
+        const idx = accounts.findIndex(a => a.smtp_user === email);
+        if (idx >= 0) {
+          accounts[idx] = config;
+        } else {
+          accounts.push(config);
+        }
+        saveLocalAccounts(accounts);
+        localStorage.setItem('claw_active_email', email);
+
+        // 如果已登录，同步到云端
+        if (currentUser) {
+          await supabase.from('claw_email_configs').upsert({
+            user_id: currentUser.id,
+            ...config,
+            smtp_port: parseInt(config.smtp_port),
+            smtp_secure: config.smtp_secure !== 'false'
+          });
+        }
+
+        document.getElementById('smtpConfigForm').classList.remove('show');
+        renderSenderList();
+        showToast('邮箱配置已保存', 'success');
+      });
+
+      // ========== 收件人标签 ==========
+      const recipients = [];
+
+      document.getElementById('recipientInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          addRecipient();
+        }
+      });
+
+      function addRecipient() {
+        const input = document.getElementById('recipientInput');
+        const email = input.value.trim().replace(/,$/, '');
+        if (!email) return;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          showToast('请输入有效的邮箱地址', 'error');
+          return;
+        }
+        if (recipients.includes(email)) {
+          showToast('该邮箱已添加', 'warning');
+          return;
+        }
+        recipients.push(email);
+        renderRecipients();
+        input.value = '';
+      }
+
+      window.removeRecipient = function(idx) {
+        recipients.splice(idx, 1);
+        renderRecipients();
+      };
+
+      function renderRecipients() {
+        const container = document.getElementById('recipientsContainer');
+        let html = '';
+        recipients.forEach((email, idx) => {
+          html += `<span class="recipient-tag">${email}<span class="remove-rcpt" onclick="removeRecipient(${idx})">&times;</span></span>`;
+        });
+        html += `<input type="email" class="recipient-input" id="recipientInput" placeholder="输入邮箱地址，回车或点击添加">`;
+        container.innerHTML = html;
+        // 重新绑定事件
+        container.querySelector('#recipientInput').addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            addRecipient();
+          }
+        });
+      }
+
+      // ========== 附件上传 ==========
+      const attachments = [];
+
+      window.handleFileSelect = function(e) {
+        const files = Array.from(e.target.files);
+        files.forEach(f => {
+          if (f.size > 10 * 1024 * 1024) {
+            showToast(`文件 ${f.name} 超过 10MB 限制`, 'error');
+            return;
+          }
+          attachments.push(f);
+        });
+        renderAttachments();
+        e.target.value = '';
+      };
+
+      window.removeAttachment = function(idx) {
+        attachments.splice(idx, 1);
+        renderAttachments();
+      };
+
+      function renderAttachments() {
+        const list = document.getElementById('attachmentList');
+        if (attachments.length === 0) {
+          list.innerHTML = '';
+          return;
+        }
+        list.innerHTML = attachments.map((f, i) => {
+          const icon = f.name.endsWith('.pdf') ? '📑' : f.name.endsWith('.docx') ? '📄' : f.name.endsWith('.xlsx') ? '📊' : '📎';
+          return `<span class="attachment-item">${icon} ${f.name}<span class="remove-att" onclick="removeAttachment(${i})">&times;</span></span>`;
+        }).join('');
+      }
+
+      // ========== AI 生成附件 ==========
+      let aiAttachType = 'docx';
+
+      document.getElementById('aiAttachBtn').addEventListener('click', () => {
+        document.getElementById('aiAttachPanel').classList.toggle('show');
+      });
+      document.getElementById('closeAiAttach').addEventListener('click', () => {
+        document.getElementById('aiAttachPanel').classList.remove('show');
+      });
+
+      document.querySelectorAll('#fileTypeSelector .file-type-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('#fileTypeSelector .file-type-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          aiAttachType = this.dataset.type;
+        });
+      });
+
+      document.getElementById('genAttachBtn').addEventListener('click', async () => {
+        const desc = document.getElementById('aiAttachDesc').value.trim();
+        if (!desc) {
+          showToast('请输入附件内容描述', 'error');
+          return;
+        }
+
+        const btn = document.getElementById('genAttachBtn');
+        const loading = document.getElementById('loading-attach');
+        btn.disabled = true;
+        loading.classList.add('show');
+
+        // 调用 server.js 生成附件
+        try {
+          const res = await fetch(`${SERVER_URL}/api/email/generate-attachment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: aiAttachType, description: desc })
+          });
+          const data = await res.json();
+
+          if (data.success && data.file_url) {
+            // 下载文件
+            const a = document.createElement('a');
+            a.href = data.file_url;
+            a.download = data.filename || `attachment.${aiAttachType}`;
+            a.click();
+            showToast('附件生成成功！', 'success');
+            document.getElementById('aiAttachPanel').classList.remove('show');
+            document.getElementById('aiAttachDesc').value = '';
+          } else {
+            throw new Error(data.error || '生成失败');
+          }
+        } catch (e) {
+          showToast('生成失败: ' + e.message, 'error');
+        } finally {
+          btn.disabled = false;
+          loading.classList.remove('show');
+        }
+      });
+
+      // ========== 生成邮件内容 ==========
+      document.getElementById('btnEmailGen').addEventListener('click', async () => {
+        const subject = document.getElementById('emailSubject').value.trim();
+        const content = document.getElementById('emailContent').value.trim();
+        const sender = document.getElementById('emailSender').value.trim();
+
+        if (!subject || !content) {
+          showToast('请填写邮件主题和要点', 'error');
+          return;
+        }
+
+        const btn = document.getElementById('btnEmailGen');
+        const loading = document.getElementById('loading-email');
+        const result = document.getElementById('result-email');
+        const pre = document.getElementById('pre-email');
+
+        btn.disabled = true;
+        loading.classList.add('show');
+        result.classList.remove('show');
+
+        try {
+          const res = await fetch(`${SERVER_URL}/api/email/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subject, content, sender_name: sender })
+          });
+          const data = await res.json();
+
+          loading.classList.remove('show');
+          result.classList.add('show');
+
+          if (data.success) {
+            pre.textContent = data.email_content;
+            showToast('邮件内容生成完成！可继续编辑后发送', 'success');
+          } else {
+            pre.textContent = '生成失败: ' + (data.error || '未知错误');
+          }
+        } catch (e) {
+          loading.classList.remove('show');
+          result.classList.add('show');
+          pre.textContent = '请求失败: ' + e.message;
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      // ========== 发送邮件 ==========
+      document.getElementById('btnEmailSend').addEventListener('click', async () => {
+        const activeEmail = localStorage.getItem('claw_active_email');
+        if (!activeEmail) {
+          showToast('请先配置发件邮箱', 'error');
+          return;
+        }
+
+        const accounts = getLocalAccounts();
+        const config = accounts.find(a => a.smtp_user === activeEmail);
+        if (!config) {
+          showToast('发件邮箱配置不完整', 'error');
+          return;
+        }
+
+        if (recipients.length === 0) {
+          showToast('请添加至少一个收件人', 'error');
+          return;
+        }
+
+        const subject = document.getElementById('emailSubject').value.trim();
+        const emailContent = document.getElementById('pre-email').textContent;
+        if (!subject) {
+          showToast('请填写邮件主题', 'error');
+          return;
+        }
+
+        const btn = document.getElementById('btnEmailSend');
+        const loading = document.getElementById('loading-email');
+        btn.disabled = true;
+        loading.classList.add('show');
+
+        try {
+          // 准备附件
+          const formData = new FormData();
+          formData.append('smtp_host', config.smtp_host);
+          formData.append('smtp_port', config.smtp_port);
+          formData.append('smtp_secure', config.smtp_secure);
+          formData.append('smtp_user', config.smtp_user);
+          formData.append('smtp_pass', config.smtp_pass_encrypted); // 后端解密
+          formData.append('to', recipients.join(','));
+          formData.append('subject', subject);
+          formData.append('html', emailContent || document.getElementById('emailContent').value);
+          formData.append('sender_name', document.getElementById('emailSender').value.trim());
+
+          // 附加文件
+          attachments.forEach(f => formData.append('attachments', f));
+
+          const res = await fetch(`${SERVER_URL}/api/email/send`, {
+            method: 'POST',
+            body: formData
+          });
+          const data = await res.json();
+
+          loading.classList.remove('show');
+
+          if (data.success) {
+            showToast('邮件发送成功！', 'success');
+
+            // 保存历史
+            const historyItem = {
+              type: 'email',
+              title: subject,
+              content: emailContent || document.getElementById('emailContent').value,
+              created_at: new Date().toISOString()
+            };
+
+            if (currentUser) {
+              await supabase.from('claw_history').insert({
+                user_id: currentUser.id,
+                type: 'email',
+                title: subject,
+                content: historyItem.content
+              });
+            } else {
+              const hist = getLocalHistory();
+              hist.unshift(historyItem);
+              saveLocalHistory(hist);
+            }
+
+            renderHistory();
+          } else {
+            showToast('发送失败: ' + (data.error || '未知错误'), 'error');
+          }
+        } catch (e) {
+          loading.classList.remove('show');
+          showToast('发送失败: ' + e.message, 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      // ========== 渲染历史记录 ==========
+      function renderHistory() {
+        const hist = getLocalHistory();
+        const container = document.getElementById('historyList');
+        if (hist.length === 0) {
+          container.innerHTML = '<span style="color:#94a3b8; font-size:0.82rem;">暂无记录</span>';
+          return;
+        }
+        container.innerHTML = hist.map(h => {
+          const time = h.created_at ? new Date(h.created_at).toLocaleString('zh-CN') : '';
+          return `
+            <div class="history-item">
+              <span class="hist-icon"><i class="fa fa-paper-plane"></i></span>
+              <span class="hist-title">${h.title || '无主题'}</span>
+              <span class="hist-time">${time}</span>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // ========== 其他面板的 Mock 提交 ==========
+      function submitWithMock(btnId, loadingId, resultId, preId, mockText) {
+        const btn = document.getElementById(btnId);
+        const loading = document.getElementById(loadingId);
+        const result = document.getElementById(resultId);
+        const pre = document.getElementById(preId);
+
+        btn.addEventListener('click', () => {
+          if (!checkGuestLimit(btnId.replace('btn', '').toLowerCase())) return;
+
+          btn.disabled = true;
+          loading.classList.add('show');
+          result.classList.remove('show');
+
+          setTimeout(() => {
+            loading.classList.remove('show');
+            result.classList.add('show');
+            pre.textContent = mockText;
+            btn.disabled = false;
+            showToast('生成完成！（当前为演示模式，接入AI后将输出真实内容）', 'success');
+          }, 2000);
+        });
+      }
+
+      // 教案设计
+      submitWithMock('btnLesson', 'loading-lesson', 'result-lesson', 'pre-lesson',
+        '📘 教案：二次函数图像与性质\n\n一、教学目标\n1. 知识与技能：理解二次函数的图像特征...\n2. 过程与方法：通过图像观察、分析...\n3. 情感态度与价值观：培养数形结合思想...\n\n二、教学重难点\n重点：二次函数的性质\n难点：图像与系数的关系\n\n三、教学过程\n1. 导入（5分钟）...\n2. 新课讲授（25分钟）...\n3. 课堂练习（10分钟）...\n4. 小结与作业（5分钟）...\n\n（演示模式，接入AI后此处将生成完整教案）');
+
+      // 习题制作
+      submitWithMock('btnExercise', 'loading-exercise', 'result-exercise', 'pre-exercise',
+        '📋 习题：一元二次方程的解法\n\n一、选择题\n1. 方程 x²-5x+6=0 的解为（  ）\nA. x=2, x=3    B. x=-2, x=-3\nC. x=1, x=6    D. x=-1, x=-6\n【答案】A\n\n二、填空题\n2. 方程 2x²-8=0 的解为 __________\n【答案】x=±2\n\n三、解答题\n3. 用配方法解方程：x²+6x-7=0\n【解析】...\n\n（演示模式，接入AI后此处将生成真实习题）');
+
+      // PPT
+      submitWithMock('btnPpt', 'loading-ppt', 'result-ppt', 'pre-ppt',
+        '📊 PPT：光合作用的过程\n\n第1页：封面 —— 光合作用的过程\n第2页：导入 —— 生活中的光合作用现象\n第3页：新课讲授 —— 光合作用的概念\n第4页：光合作用的条件与场所\n第5页：光合作用的公式\n第6页：影响光合作用的因素\n第7页：光合作用的实质\n第8页：课堂练习\n第9页：知识拓展\n第10页：小结与作业\n\n（演示模式，接入AI后将生成可下载的PPT文件）');
+
+      // 小程序
+      submitWithMock('btnMiniapp', 'loading-miniapp', 'result-miniapp', 'pre-miniapp',
+        '📱 教学小程序：随机点名助手\n\n✅ 已生成 HTML 小程序代码\n✅ 包含：随机动画、名单管理、历史记录\n\n预览代码：\n```html\n<!DOCTYPE html>\n<html>\n<head>\n  <title>课堂点名助手</title>\n  <style>...\n</style>\n</head>\n<body>\n  <div class="container">\n    <h1>🎯 随机点名</h1>\n    ...\n  </div>\n</body>\n</html>\n```\n\n（演示模式，接入AI后将生成完整HTML并可选推送到GitHub）');
+
+      // ========== 初始化 ==========
+      initAuth();
+
+    })();
+  </script>
+</body>
+</html>
