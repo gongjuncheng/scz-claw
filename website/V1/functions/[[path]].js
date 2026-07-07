@@ -1,4 +1,4 @@
-// Cloudflare Pages Functions 反向代理（位于仓库根目录 /functions 下才会被识别）
+// Cloudflare Pages Functions 反向代理（位于构建输出目录 website/V1/functions 下）
 // 作用：将 HTTPS 前端的 /api/* 请求在服务端转发到后端 HTTP 服务，
 //       避免浏览器因"HTTPS 页面不能访问 HTTP 资源"而报错（混合内容限制）。
 // 后端地址可通过 Pages 环境变量 BACKEND_URL 覆盖，否则使用默认值。
