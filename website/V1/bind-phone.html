@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>实名认证 · 春志Claw</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#f5f7fa;font-family:'PingFang SC','Microsoft YaHei';min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{background:white;border-radius:20px;padding:40px 32px;max-width:440px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,0.06);}
+h2{font-size:1.4rem;font-weight:700;text-align:center;margin-bottom:4px;}
+.subtitle{text-align:center;color:#888;font-size:.82rem;margin-bottom:24px;}
+.warning{background:#fff3cd;border:1px solid #ffecb5;border-radius:10px;padding:12px;font-size:.83rem;color:#856404;text-align:center;margin-bottom:20px;}
+.tabs{display:flex;border-radius:10px;overflow:hidden;border:1px solid #d1d5db;margin:20px 0;}
+.tab-btn{flex:1;padding:10px;border:none;background:#f9fafb;cursor:pointer;font-size:.85rem;color:#666;}
+.tab-btn.active{background:#2563eb;color:white;font-weight:600;}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
+.input-group{margin-bottom:16px;}
+label{display:block;font-size:.83rem;font-weight:500;color:#333;margin-bottom:6px;}
+input{width:100%;padding:13px 15px;border:1px solid #d1d5db;border-radius:10px;font-size:1rem;outline:none;font-family:inherit;}
+input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.1);}
+.btn{width:100%;padding:13px;border-radius:10px;font-size:.95rem;font-weight:600;border:none;cursor:pointer;background:#2563eb;color:white;}
+.btn:disabled{background:#93c5fd;cursor:not-allowed;}
+.msg{text-align:center;font-size:.83rem;margin-top:12px;min-height:20px;}
+.msg.error{color:#dc2626;}.msg.success{color:#16a34a;}.msg.info{color:#888;}
+.qr-box{text-align:center;margin:16px 0;padding:20px;background:#fafafa;border-radius:12px;border:1px solid #e5e7eb;min-height:80px;}
+.qr-box img{max-width:200px;height:auto;}
+.steps{font-size:.83rem;color:#555;line-height:1.8;margin-bottom:16px;padding-left:18px;}
+.hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="card">
+<h2>🔐 实名认证</h2>
+<p class="subtitle">根据工信部实名制要求，使用春志Claw前必须完成认证</p>
+<div class="warning">⚠️ 请选择以下任一方式完成实名认证</div>
+
+<div class="tabs">
+<button class="tab-btn active" data-tab="phone">📱 手机号认证</button>
+<button class="tab-btn" data-tab="totp">🔐 Authenticator</button>
+</div>
+
+<!-- 手机号 -->
+<div id="phonePanel" class="tab-panel active">
+<div id="phoneStep1">
+<div class="input-group"><label>手机号</label><input id="phoneInput" type="tel" placeholder="请输入11位手机号" maxlength="11"></div>
+<button class="btn" id="sendCodeBtn">获取验证码</button>
+<p class="msg info" id="phoneMsg1"></p>
+</div>
+<div id="phoneStep2" class="hidden">
+<p style="text-align:center;margin-bottom:14px;color:#555;font-size:.88rem;">验证码已发送至 <strong id="displayPhone"></strong></p>
+<div class="input-group"><label>验证码</label><input id="codeInput" placeholder="请输入验证码" maxlength="6"></div>
+<button class="btn" id="verifyPhoneBtn">验证并绑定</button>
+<p class="msg info" id="phoneMsg2"></p>
+</div>
+<div id="phoneStep3" class="hidden" style="text-align:center;">
+<p style="font-size:3rem;">✅</p>
+<p style="font-size:1.1rem;font-weight:600;margin:10px 0;">手机号绑定成功</p>
+</div>
+</div>
+
+<!-- TOTP -->
+<div id="totpPanel" class="tab-panel">
+<div id="totpStep1">
+<p class="steps">1. 安装 Microsoft Authenticator 或 Google Authenticator<br>2. 点击下方生成二维码<br>3. 用 App 扫描二维码</p>
+<button class="btn" id="genBtn">生成二维码</button>
+<div id="qrBox" class="qr-box hidden"></div>
+<p class="msg info" id="totpMsg1"></p>
+</div>
+<div id="totpStep2" class="hidden">
+<p style="text-align:center;margin-bottom:14px;color:#555;font-size:.88rem;">请输入 App 显示的6位验证码</p>
+<div class="input-group"><input id="totpCode" placeholder="输入6位验证码" maxlength="6"></div>
+<button class="btn" id="verifyTotpBtn">验证并绑定</button>
+<p class="msg info" id="totpMsg2"></p>
+</div>
+<div id="totpStep3" class="hidden" style="text-align:center;">
+<p style="font-size:3rem;">✅</p>
+<p style="font-size:1.1rem;font-weight:600;margin:10px 0;">Authenticator 绑定成功</p>
+</div>
+</div>
+</div>
+
+<script>
+const supabase=window.supabase.createClient(
+'https://jbwmyqvlujytnjpgsqed.supabase.co',
+'sb_publishable_RSF_RRme6hI32KQqXBtWlA_httMuqbe'
+);
+let user=null;
+
+// 初始化
+(async()=>{
+const{data:{user:u},error}=await supabase.auth.getUser();
+if(error||!u){location.href='auth.html';return;}
+user=u;
+const{data}=await supabase.from('profiles').select('phone,mfa_enrolled').eq('id',u.id).single();
+if(data?.phone||data?.mfa_enrolled)location.href='index.html';
+})();
+
+// Tab
+document.querySelectorAll('.tab-btn').forEach(b=>{
+b.onclick=()=>{
+document.querySelectorAll('.tab-btn,.tab-panel').forEach(x=>x.classList.remove('active'));
+b.classList.add('active');
+document.getElementById(b.dataset.tab+'Panel').classList.add('active');
+};
+});
+
+// 手机号输入限制
+document.getElementById('phoneInput').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'');});
+
+// 发送验证码
+document.getElementById('sendCodeBtn').onclick=async()=>{
+const ph=document.getElementById('phoneInput').value.trim();
+if(!/^1[3-9]\d{9}$/.test(ph))return show('phoneMsg1','请输入正确手机号','error');
+const btn=document.getElementById('sendCodeBtn');btn.disabled=true;btn.textContent='发送中...';
+const r=await fetch('/api/send-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mobile:ph})});
+const t=await r.text();let d;try{d=JSON.parse(t);}catch(e){btn.disabled=false;btn.textContent='获取验证码';return show('phoneMsg1','服务器返回格式异常','error');}
+if(d.status===0&&d.data?.sessionId){
+window.currentSessionId=d.data.sessionId;
+document.getElementById('displayPhone').textContent=ph;
+document.getElementById('phoneStep1').classList.add('hidden');
+document.getElementById('phoneStep2').classList.remove('hidden');
+}else{show('phoneMsg1','发送失败: '+(d.msg||JSON.stringify(d)),'error');btn.disabled=false;btn.textContent='获取验证码';}
+};
+
+// 验证手机号
+document.getElementById('verifyPhoneBtn').onclick=async()=>{
+const code=document.getElementById('codeInput').value.trim();
+if(!code)return show('phoneMsg2','请输入验证码','error');
+const btn=document.getElementById('verifyPhoneBtn');btn.disabled=true;btn.textContent='验证中...';
+const ph=document.getElementById('phoneInput').value.trim();
+const r=await fetch('/api/verify-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:window.currentSessionId,code,mobile:ph})});
+const t=await r.text();let d;try{d=JSON.parse(t);}catch(e){btn.disabled=false;btn.textContent='验证并绑定';return show('phoneMsg2','服务器返回格式异常','error');}
+if(d.status===0){
+const em=`phone_${ph}@claw.local`,pw='Claw@'+ph.slice(-6);
+const{data}=await supabase.auth.signUp({email:em,password:pw});
+await supabase.from('profiles').update({phone:ph}).eq('id',data.user.id);
+document.getElementById('phoneStep2').classList.add('hidden');
+document.getElementById('phoneStep3').classList.remove('hidden');
+setTimeout(()=>location.href='index.html',2000);
+}else{show('phoneMsg2','验证失败: '+(d.msg||'验证码错误'),'error');btn.disabled=false;btn.textContent='验证并绑定';}
+};
+
+// 生成 TOTP 二维码
+document.getElementById('genBtn').onclick=async()=>{
+if(!user)return alert('未登录');
+const btn=document.getElementById('genBtn');btn.disabled=true;btn.textContent='生成中...';
+const r=await fetch('/api/totp/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.id})});
+const t=await r.text();let d;try{d=JSON.parse(t);}catch(e){
+btn.disabled=false;btn.textContent='生成二维码';
+return document.getElementById('qrBox').innerHTML='<div style="background:#fee;color:#900;padding:10px;border-radius:8px;font-size:12px;">服务器返回非JSON:<br>'+t.substring(0,300)+'</div>';
+}
+if(d.qrCode){
+document.getElementById('qrBox').innerHTML='<img src="'+d.qrCode+'" alt="QR">';
+document.getElementById('qrBox').classList.remove('hidden');
+document.getElementById('totpStep2').classList.remove('hidden');
+show('totpMsg1','✅ 二维码已生成，请用App扫码','success');
+}else{show('totpMsg1','生成失败: '+(d.error||'请重试'),'error');btn.disabled=false;btn.textContent='生成二维码';}
+};
+
+// 验证 TOTP
+document.getElementById('verifyTotpBtn').onclick=async()=>{
+const code=document.getElementById('totpCode').value.trim();
+if(!code||code.length!==6)return show('totpMsg2','请输入6位验证码','error');
+const btn=document.getElementById('verifyTotpBtn');btn.disabled=true;btn.textContent='验证中...';
+const r=await fetch('/api/totp/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.id,code})});
+const t=await r.text();let d;try{d=JSON.parse(t);}catch(e){btn.disabled=false;btn.textContent='验证并绑定';return show('totpMsg2','服务器返回格式异常','error');}
+if(d.success){
+document.getElementById('totpStep1').classList.add('hidden');
+document.getElementById('totpStep2').classList.add('hidden');
+document.getElementById('totpStep3').classList.remove('hidden');
+setTimeout(()=>location.href='index.html',2000);
+}else{show('totpMsg2','验证失败: '+(d.error||'验证码错误'),'error');btn.disabled=false;btn.textContent='验证并绑定';}
+};
+
+function show(id,t,type){const e=document.getElementById(id);e.textContent=t;e.className='msg '+(type||'info');}
+</script>
+</body>
+</html>
