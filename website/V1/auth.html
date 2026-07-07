@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>登录 · 春志Claw</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#f5f7fa;font-family:'PingFang SC','Microsoft YaHei';min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{background:white;border-radius:20px;padding:40px 32px;max-width:420px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,0.06);}
+h2{font-size:1.6rem;font-weight:700;text-align:center;margin-bottom:4px;}
+.subtitle{text-align:center;color:#888;font-size:.85rem;margin-bottom:24px;}
+.input-group{margin-bottom:16px;}
+label{display:block;font-size:.83rem;font-weight:500;color:#333;margin-bottom:6px;}
+input{width:100%;padding:13px 15px;border:1px solid #d1d5db;border-radius:10px;font-size:1rem;outline:none;font-family:inherit;}
+input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.1);}
+.btn{width:100%;padding:13px;border-radius:10px;font-size:.95rem;font-weight:600;border:none;cursor:pointer;background:#2563eb;color:white;}
+.btn:disabled{background:#93c5fd;cursor:not-allowed;}
+.msg{text-align:center;font-size:.83rem;margin-top:12px;min-height:20px;}
+.msg.error{color:#dc2626;}.msg.success{color:#16a34a;}.msg.info{color:#888;}
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:#94a3b8;font-size:.8rem;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:#e2e8f0;}
+.hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="card">
+<h2>春志Claw</h2>
+<p class="subtitle">教师AI助手 · 高效办公</p>
+
+<div id="loginView">
+<div class="input-group">
+<label>邮箱 / 手机号</label>
+<input id="loginAccount" placeholder="请输入邮箱或手机号">
+</div>
+<div class="input-group">
+<label>密码</label>
+<input id="loginPassword" type="password" placeholder="请输入密码">
+</div>
+<button class="btn" id="loginBtn">登录</button>
+<div class="divider">或</div>
+<button class="btn" id="totpLoginBtn" style="background:#f9fafb;color:#333;border:1px solid #d1d5db;">🔐 使用 Authenticator 登录</button>
+<p class="msg" id="loginMsg"></p>
+<div style="text-align:center;margin-top:16px;font-size:.85rem;color:#666;">
+还没账号？<a href="#" id="goRegister" style="color:#2563eb;">点击注册</a>
+</div>
+</div>
+
+<div id="registerView" class="hidden">
+<div class="input-group">
+<label>注册方式</label>
+<div style="display:flex;gap:10px;">
+<button class="btn" id="tabEmail" style="background:#2563eb;color:white;flex:1;">📧 邮箱</button>
+<button class="btn" id="tabPhone" style="background:#f9fafb;color:#333;border:1px solid #d1d5db;flex:1;">📱 手机</button>
+</div>
+</div>
+<div id="emailReg">
+<div class="input-group">
+<label>邮箱</label>
+<input id="regEmail" type="email" placeholder="请输入邮箱">
+</div>
+<div class="input-group">
+<label>密码（至少6位）</label>
+<input id="regPwd" type="password" placeholder="请设置密码" minlength="6">
+</div>
+<button class="btn" id="emailRegBtn">注册</button>
+</div>
+<div id="phoneReg" class="hidden">
+<div class="input-group">
+<label>手机号</label>
+<input id="regPhone" type="tel" placeholder="请输入11位手机号" maxlength="11">
+</div>
+<button class="btn" id="sendRegCode">获取验证码</button>
+<div id="phoneRegStep2" class="hidden" style="margin-top:12px;">
+<div class="input-group">
+<label>验证码</label>
+<input id="regCode" placeholder="请输入验证码" maxlength="6">
+</div>
+<button class="btn" id="verifyRegCode">验证并注册</button>
+</div>
+</div>
+<p class="msg" id="regMsg"></p>
+<div style="text-align:center;margin-top:16px;font-size:.85rem;color:#666;">
+已有账号？<a href="#" id="goLogin" style="color:#2563eb;">去登录</a>
+</div>
+</div>
+</div>
+
+<script>
+const supabase=window.supabase.createClient(
+'https://jbwmyqvlujytnjpgsqed.supabase.co',
+'sb_publishable_RSF_RRme6hI32KQqXBtWlA_httMuqbe'
+);
+
+let regSessionId=null;
+
+// 切换注册/登录
+document.getElementById('goRegister').onclick=e=>{e.preventDefault();document.getElementById('loginView').classList.add('hidden');document.getElementById('registerView').classList.remove('hidden');};
+document.getElementById('goLogin').onclick=e=>{e.preventDefault();document.getElementById('registerView').classList.add('hidden');document.getElementById('loginView').classList.remove('hidden');};
+
+// Tab 切换
+document.getElementById('tabEmail').onclick=()=>{
+document.getElementById('tabEmail').style.background='#2563eb';document.getElementById('tabEmail').style.color='white';
+document.getElementById('tabPhone').style.background='#f9fafb';document.getElementById('tabPhone').style.color='#333';
+document.getElementById('emailReg').classList.remove('hidden');document.getElementById('phoneReg').classList.add('hidden');
+};
+document.getElementById('tabPhone').onclick=()=>{
+document.getElementById('tabPhone').style.background='#2563eb';document.getElementById('tabPhone').style.color='white';
+document.getElementById('tabEmail').style.background='#f9fafb';document.getElementById('tabEmail').style.color='#333';
+document.getElementById('phoneReg').classList.remove('hidden');document.getElementById('emailReg').classList.add('hidden');
+};
+
+// 登录
+document.getElementById('loginBtn').onclick=async()=>{
+const acc=document.getElementById('loginAccount').value.trim();
+const pwd=document.getElementById('loginPassword').value;
+if(!acc||!pwd)return show('loginMsg','请输入账号和密码','error');
+let email=acc;
+if(/^1[3-9]\d{9}$/.test(acc)){
+const{data}=await supabase.from('profiles').select('id').eq('phone',acc).single();
+if(!data?.id)return show('loginMsg','该手机号未注册','error');
+const{data:{users}}=await supabase.auth.admin.listUsers();
+const u=users?.find(x=>x.id===data.id);email=u?.email||'';
+if(!email)return show('loginMsg','无法找到关联邮箱','error');
+}
+const{data,error}=await supabase.auth.signInWithPassword({email,password:pwd});
+if(error)return show('loginMsg','登录失败: '+error.message,'error');
+check(data.user.id);
+};
+
+// TOTP 登录
+document.getElementById('totpLoginBtn').onclick=()=>{
+const em=prompt('请输入邮箱：');
+const cd=prompt('请输入6位验证码：');
+if(!em||!cd)return;
+fetch('/api/totp/verify-by-email',{
+method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({email:em,code:cd})
+}).then(r=>r.json()).then(d=>{
+if(d.success){show('loginMsg','验证成功！','success');check(d.userId);}
+else show('loginMsg','验证失败: '+(d.error||'验证码错误'),'error');
+});
+};
+
+// 邮箱注册
+document.getElementById('emailRegBtn').onclick=async()=>{
+const em=document.getElementById('regEmail').value.trim();
+const pw=document.getElementById('regPwd').value;
+if(!em||pw.length<6)return show('regMsg','请输入有效邮箱和至少6位密码','error');
+const{data,error}=await supabase.auth.signUp({email:em,password:pw});
+if(error)return show('regMsg','注册失败: '+error.message,'error');
+show('regMsg','注册成功！请查收验证邮件。','success');
+};
+
+// 短信注册
+document.getElementById('sendRegCode').onclick=async()=>{
+const ph=document.getElementById('regPhone').value.trim();
+if(!/^1[3-9]\d{9}$/.test(ph))return show('regMsg','请输入正确手机号','error');
+const r=await fetch('/api/send-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mobile:ph})});
+const d=await r.json();
+if(d.status===0&&d.data?.sessionId){regSessionId=d.data.sessionId;document.getElementById('phoneRegStep2').classList.remove('hidden');show('regMsg','验证码已发送','info');}
+else{show('regMsg','发送失败: '+(d.msg||'未知错误'),'error');}
+};
+
+document.getElementById('verifyRegCode').onclick=async()=>{
+const ph=document.getElementById('regPhone').value.trim();
+const cd=document.getElementById('regCode').value.trim();
+const r=await fetch('/api/verify-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:regSessionId,code:cd,mobile:ph})});
+const d=await r.json();
+if(d.status===0){
+const em=`phone_${ph}@claw.local`,pw='Claw@'+ph.slice(-6);
+const{data}=await supabase.auth.signUp({email:em,password:pw});
+await supabase.from('profiles').update({phone:ph}).eq('id',data.user.id);
+show('regMsg','注册成功！','success');setTimeout(()=>check(data.user.id),1500);
+}else show('regMsg','验证失败: '+(d.msg||'验证码错误'),'error');
+};
+
+async function check(uid){
+const{data}=await supabase.from('profiles').select('phone,mfa_enrolled').eq('id',uid).single();
+if(data?.phone||data?.mfa_enrolled)location.href='index.html';
+else location.href='bind-phone.html';
+}
+function show(id,t,type){const e=document.getElementById(id);e.textContent=t;e.className='msg '+(type||'info');}
+</script>
+</body>
+</html>
