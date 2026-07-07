@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>登录 · 春志Claw</title>
 <script src="vendor/supabase-js.min.js"></script>
+<script src="config.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#f5f7fa;font-family:'PingFang SC','Microsoft YaHei';min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
@@ -96,6 +97,9 @@ const supabase=window.supabase.createClient(
 
 let regSessionId=null;
 
+// 后端基地址（config.js 可覆盖为 Worker/Tunnel 的 HTTPS 地址）
+const API = (window.CLAW_API_BASE || '') + '/api';
+
 // 切换注册/登录
 document.getElementById('goRegister').onclick=e=>{e.preventDefault();document.getElementById('loginView').classList.add('hidden');document.getElementById('registerView').classList.remove('hidden');};
 document.getElementById('goLogin').onclick=e=>{e.preventDefault();document.getElementById('registerView').classList.add('hidden');document.getElementById('loginView').classList.remove('hidden');};
@@ -119,7 +123,7 @@ const pwd=document.getElementById('loginPassword').value;
 if(!acc||!pwd)return show('loginMsg','请输入账号和密码','error');
 let email=acc;
 if(/^1[3-9]\d{9}$/.test(acc)){
-const r=await fetch('/api/phone-to-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:acc})});
+const r=await fetch(API+'/phone-to-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:acc})});
 const d=await r.json();
 if(!r.ok||!d.email)return show('loginMsg',d.error||'该手机号未注册','error');
 email=d.email;
@@ -134,7 +138,7 @@ document.getElementById('totpLoginBtn').onclick=()=>{
 const em=prompt('请输入邮箱：');
 const cd=prompt('请输入6位验证码：');
 if(!em||!cd)return;
-fetch('/api/totp/verify-by-email',{
+fetch(API+'/totp/verify-by-email',{
 method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({email:em,code:cd})
 }).then(r=>r.json()).then(d=>{
@@ -157,7 +161,7 @@ show('regMsg','注册成功！请查收验证邮件。','success');
 document.getElementById('sendRegCode').onclick=async()=>{
 const ph=document.getElementById('regPhone').value.trim();
 if(!/^1[3-9]\d{9}$/.test(ph))return show('regMsg','请输入正确手机号','error');
-const r=await fetch('/api/send-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mobile:ph})});
+const r=await fetch(API+'/send-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mobile:ph})});
 const d=await r.json();
 if(d.status===0&&d.data?.sessionId){regSessionId=d.data.sessionId;document.getElementById('phoneRegStep2').classList.remove('hidden');show('regMsg','验证码已发送','info');}
 else{show('regMsg','发送失败: '+(d.msg||'未知错误'),'error');}
@@ -166,7 +170,7 @@ else{show('regMsg','发送失败: '+(d.msg||'未知错误'),'error');}
 document.getElementById('verifyRegCode').onclick=async()=>{
 const ph=document.getElementById('regPhone').value.trim();
 const cd=document.getElementById('regCode').value.trim();
-const r=await fetch('/api/verify-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:regSessionId,code:cd,mobile:ph})});
+const r=await fetch(API+'/verify-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:regSessionId,code:cd,mobile:ph})});
 const d=await r.json();
 if(d.status===0){
 const em=`phone_${ph}@claw.local`,pw='Claw@'+ph.slice(-6);

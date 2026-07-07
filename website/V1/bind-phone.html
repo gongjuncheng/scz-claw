@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>实名认证 · 春志Claw</title>
 <script src="vendor/supabase-js.min.js"></script>
+<script src="config.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#f5f7fa;font-family:'PingFang SC','Microsoft YaHei';min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
@@ -89,6 +90,9 @@ const supabase=window.supabase.createClient(
 );
 let user=null;
 
+// 后端基地址（config.js 可覆盖为 Worker/Tunnel 的 HTTPS 地址）
+const API = (window.CLAW_API_BASE || '') + '/api';
+
 // 获取当前会话令牌，供后端 JWT 鉴权使用
 async function authHeader() {
   const { data: { session } } = await supabase.auth.getSession();
@@ -121,7 +125,7 @@ document.getElementById('sendCodeBtn').onclick=async()=>{
 const ph=document.getElementById('phoneInput').value.trim();
 if(!/^1[3-9]\d{9}$/.test(ph))return show('phoneMsg1','请输入正确手机号','error');
 const btn=document.getElementById('sendCodeBtn');btn.disabled=true;btn.textContent='发送中...';
-const r=await fetch('/api/send-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mobile:ph})});
+const r=await fetch(API+'/send-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mobile:ph})});
 const t=await r.text();let d;try{d=JSON.parse(t);}catch(e){btn.disabled=false;btn.textContent='获取验证码';return show('phoneMsg1','服务器返回格式异常','error');}
 if(d.status===0&&d.data?.sessionId){
 window.currentSessionId=d.data.sessionId;
@@ -137,7 +141,7 @@ const code=document.getElementById('codeInput').value.trim();
 if(!code)return show('phoneMsg2','请输入验证码','error');
 const btn=document.getElementById('verifyPhoneBtn');btn.disabled=true;btn.textContent='验证中...';
 const ph=document.getElementById('phoneInput').value.trim();
-const r=await fetch('/api/verify-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:window.currentSessionId,code,mobile:ph})});
+const r=await fetch(API+'/verify-sms-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:window.currentSessionId,code,mobile:ph})});
 const t=await r.text();let d;try{d=JSON.parse(t);}catch(e){btn.disabled=false;btn.textContent='验证并绑定';return show('phoneMsg2','服务器返回格式异常','error');}
 if(d.status===0){
 const em=`phone_${ph}@claw.local`,pw='Claw@'+ph.slice(-6);
@@ -153,7 +157,7 @@ setTimeout(()=>location.href='index.html',2000);
 document.getElementById('genBtn').onclick=async()=>{
 if(!user)return alert('未登录');
 const btn=document.getElementById('genBtn');btn.disabled=true;btn.textContent='生成中...';
-const r=await fetch('/api/totp/generate',{method:'POST',headers:{'Content-Type':'application/json','Authorization':await authHeader()},body:JSON.stringify({userId:user.id})});
+const r=await fetch(API+'/totp/generate',{method:'POST',headers:{'Content-Type':'application/json','Authorization':await authHeader()},body:JSON.stringify({userId:user.id})});
 const t=await r.text();let d;try{d=JSON.parse(t);}catch(e){
 btn.disabled=false;btn.textContent='生成二维码';
 return document.getElementById('qrBox').innerHTML='<div style="background:#fee;color:#900;padding:10px;border-radius:8px;font-size:12px;">服务器返回非JSON:<br>'+t.substring(0,300)+'</div>';
@@ -171,7 +175,7 @@ document.getElementById('verifyTotpBtn').onclick=async()=>{
 const code=document.getElementById('totpCode').value.trim();
 if(!code||code.length!==6)return show('totpMsg2','请输入6位验证码','error');
 const btn=document.getElementById('verifyTotpBtn');btn.disabled=true;btn.textContent='验证中...';
-const r=await fetch('/api/totp/verify',{method:'POST',headers:{'Content-Type':'application/json','Authorization':await authHeader()},body:JSON.stringify({userId:user.id,code})});
+const r=await fetch(API+'/totp/verify',{method:'POST',headers:{'Content-Type':'application/json','Authorization':await authHeader()},body:JSON.stringify({userId:user.id,code})});
 const t=await r.text();let d;try{d=JSON.parse(t);}catch(e){btn.disabled=false;btn.textContent='验证并绑定';return show('totpMsg2','服务器返回格式异常','error');}
 if(d.success){
 document.getElementById('totpStep1').classList.add('hidden');

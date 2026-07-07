@@ -6,6 +6,7 @@
   <title>春志Claw · 教师AI助手</title>
   <script src="vendor/supabase-js.min.js"></script>
   <script src="vendor/tailwind.js"></script>
+  <script src="config.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
   <style>
     * { margin:0; padding:0; box-sizing: border-box; }
@@ -856,8 +857,8 @@
       const SUPABASE_ANON_KEY = 'sb_publishable_RSF_RRme6hI32KQqXBtWlA_httMuqbe';
       if(!window.supabase){document.body.innerHTML='<div style="padding:24px;color:#dc2626;font-family:sans-serif">核心脚本加载失败，请确认 vendor/supabase-js.min.js 已随项目部署。</div>';throw new Error('supabase-js 未加载');}
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      // 通过相对路径走 Cloudflare Pages Functions 代理（解决 HTTPS 页无法访问 HTTP 后端的混合内容问题）
-      const SERVER_URL = '';
+      // 后端地址：默认走 Cloudflare Pages Functions 代理；可在 config.js 改为 Worker/Tunnel 的 HTTPS 地址
+      const SERVER_URL = window.CLAW_API_BASE || '';
 
       let currentUser = null;
 
@@ -1696,7 +1697,7 @@
       }
 
       // 教案设计
-      submitAI('btnLesson', 'loading-lesson', 'result-lesson', 'pre-lesson', '/api/ai/lesson', () => {
+      submitAI('btnLesson', 'loading-lesson', 'result-lesson', 'pre-lesson', SERVER_URL + '/api/ai/lesson', () => {
         const topic = document.getElementById('lessonTopic').value.trim();
         if (!topic) return { error: '请填写教学主题' };
         return {
@@ -1708,7 +1709,7 @@
       });
 
       // 习题制作
-      submitAI('btnExercise', 'loading-exercise', 'result-exercise', 'pre-exercise', '/api/ai/exercise', () => {
+      submitAI('btnExercise', 'loading-exercise', 'result-exercise', 'pre-exercise', SERVER_URL + '/api/ai/exercise', () => {
         const topic = document.getElementById('exerTopic').value.trim();
         if (!topic) return { error: '请填写知识点' };
         const types = Array.from(document.querySelectorAll('#panel-exercise input[type=checkbox]'))
@@ -1727,7 +1728,7 @@
       });
 
       // 教学PPT
-      submitAI('btnPpt', 'loading-ppt', 'result-ppt', 'pre-ppt', '/api/ai/ppt', () => {
+      submitAI('btnPpt', 'loading-ppt', 'result-ppt', 'pre-ppt', SERVER_URL + '/api/ai/ppt', () => {
         const topic = document.getElementById('pptTopic').value.trim();
         if (!topic) return { error: '请填写PPT主题' };
         return {
@@ -1739,7 +1740,7 @@
       });
 
       // 教学小程序
-      submitAI('btnMiniapp', 'loading-miniapp', 'result-miniapp', 'pre-miniapp', '/api/ai/miniapp', () => {
+      submitAI('btnMiniapp', 'loading-miniapp', 'result-miniapp', 'pre-miniapp', SERVER_URL + '/api/ai/miniapp', () => {
         const description = document.getElementById('miniappDesc').value.trim();
         if (!description) return { error: '请描述小程序功能' };
         return { type: 'miniapp', title: description.slice(0, 20), description };
