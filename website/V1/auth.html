@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>登录 · 春志Claw</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vendor/supabase-js.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#f5f7fa;font-family:'PingFang SC','Microsoft YaHei';min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
@@ -88,6 +88,7 @@ input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.1);}
 </div>
 
 <script>
+if(!window.supabase){document.body.innerHTML='<div style="padding:24px;color:#dc2626;font-family:sans-serif">核心脚本加载失败，请确认 vendor/supabase-js.min.js 已随项目部署。</div>';throw new Error('supabase-js 未加载');}
 const supabase=window.supabase.createClient(
 'https://jbwmyqvlujytnjpgsqed.supabase.co',
 'sb_publishable_RSF_RRme6hI32KQqXBtWlA_httMuqbe'

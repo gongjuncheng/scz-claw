@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>春志Claw · 教师AI助手</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="vendor/supabase-js.min.js"></script>
+  <script src="vendor/tailwind.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
   <style>
     * { margin:0; padding:0; box-sizing: border-box; }
@@ -854,6 +854,7 @@
     (function() {
       const SUPABASE_URL = 'https://jbwmyqvlujytnjpgsqed.supabase.co';
       const SUPABASE_ANON_KEY = 'sb_publishable_RSF_RRme6hI32KQqXBtWlA_httMuqbe';
+      if(!window.supabase){document.body.innerHTML='<div style="padding:24px;color:#dc2626;font-family:sans-serif">核心脚本加载失败，请确认 vendor/supabase-js.min.js 已随项目部署。</div>';throw new Error('supabase-js 未加载');}
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       // 通过相对路径走 Cloudflare Pages Functions 代理（解决 HTTPS 页无法访问 HTTP 后端的混合内容问题）
       const SERVER_URL = '';
