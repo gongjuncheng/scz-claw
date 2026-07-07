@@ -88,6 +88,12 @@ const supabase=window.supabase.createClient(
 );
 let user=null;
 
+// 获取当前会话令牌，供后端 JWT 鉴权使用
+async function authHeader() {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ? 'Bearer ' + session.access_token : '';
+}
+
 // 初始化
 (async()=>{
 const{data:{user:u},error}=await supabase.auth.getUser();
@@ -146,7 +152,7 @@ setTimeout(()=>location.href='index.html',2000);
 document.getElementById('genBtn').onclick=async()=>{
 if(!user)return alert('未登录');
 const btn=document.getElementById('genBtn');btn.disabled=true;btn.textContent='生成中...';
-const r=await fetch('/api/totp/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.id})});
+const r=await fetch('/api/totp/generate',{method:'POST',headers:{'Content-Type':'application/json','Authorization':await authHeader()},body:JSON.stringify({userId:user.id})});
 const t=await r.text();let d;try{d=JSON.parse(t);}catch(e){
 btn.disabled=false;btn.textContent='生成二维码';
 return document.getElementById('qrBox').innerHTML='<div style="background:#fee;color:#900;padding:10px;border-radius:8px;font-size:12px;">服务器返回非JSON:<br>'+t.substring(0,300)+'</div>';
@@ -164,7 +170,7 @@ document.getElementById('verifyTotpBtn').onclick=async()=>{
 const code=document.getElementById('totpCode').value.trim();
 if(!code||code.length!==6)return show('totpMsg2','请输入6位验证码','error');
 const btn=document.getElementById('verifyTotpBtn');btn.disabled=true;btn.textContent='验证中...';
-const r=await fetch('/api/totp/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:user.id,code})});
+const r=await fetch('/api/totp/verify',{method:'POST',headers:{'Content-Type':'application/json','Authorization':await authHeader()},body:JSON.stringify({userId:user.id,code})});
 const t=await r.text();let d;try{d=JSON.parse(t);}catch(e){btn.disabled=false;btn.textContent='验证并绑定';return show('totpMsg2','服务器返回格式异常','error');}
 if(d.success){
 document.getElementById('totpStep1').classList.add('hidden');
